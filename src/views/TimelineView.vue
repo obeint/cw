@@ -84,86 +84,78 @@ async function onCreate() {
   <div class="mx-auto flex max-w-2xl flex-col gap-3 p-3">
     <h1 class="text-xl font-bold">Timeline</h1>
 
-    <form
-      class="flex flex-col gap-2 rounded border border-stone-200 bg-white p-3"
-      @submit.prevent="onCreate"
-    >
-      <div class="flex gap-2">
-        <input
-          v-model="newName"
-          placeholder="New event name…"
-          class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-3 py-2"
-        />
-        <button
-          type="submit"
-          class="rounded bg-amber-700 px-4 py-2 font-semibold text-white disabled:opacity-40"
-          :disabled="!newName.trim()"
-        >
-          Add
-        </button>
+    <form class="card bg-base-100 shadow-sm" @submit.prevent="onCreate">
+      <div class="card-body gap-2 p-4">
+        <div class="flex gap-2">
+          <input
+            v-model="newName"
+            placeholder="New event name…"
+            class="input min-w-0 flex-1"
+          />
+          <button type="submit" class="btn btn-primary" :disabled="!newName.trim()">Add</button>
+        </div>
+        <div class="flex gap-2">
+          <input
+            v-model="newYear"
+            type="number"
+            placeholder="Year (for ordering)"
+            class="input input-sm w-40"
+          />
+          <input
+            v-model="newDate"
+            placeholder="Display date, e.g. TA 2941 (optional)"
+            class="input input-sm min-w-0 flex-1"
+          />
+        </div>
+        <p class="text-xs opacity-60">
+          The numeric year orders the timeline; the display date is free text. Link who was
+          involved from the event's page with <i>involved-in</i>.
+        </p>
       </div>
-      <div class="flex gap-2">
-        <input
-          v-model="newYear"
-          type="number"
-          placeholder="Year (for ordering)"
-          class="w-40 rounded border border-stone-300 bg-white px-3 py-2 text-sm"
-        />
-        <input
-          v-model="newDate"
-          placeholder="Display date, e.g. TA 2941 (optional)"
-          class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-3 py-2 text-sm"
-        />
-      </div>
-      <p class="text-xs text-stone-500">
-        The numeric year orders the timeline; the display date is free text. Link who was involved
-        from the event's page with <i>involved-in</i>.
-      </p>
     </form>
 
-    <p v-if="timeline.length === 0" class="py-8 text-center text-stone-500">
+    <p v-if="timeline.length === 0" class="py-8 text-center opacity-60">
       No events yet. Add your first battle, founding, or coronation above.
     </p>
 
-    <ol v-else class="ml-2 flex flex-col gap-4 border-l-2 border-amber-700/40 pl-4">
-      <li v-for="entry in timeline" :key="entry.event.id" class="relative">
-        <span
-          class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full border-2 border-amber-700 bg-stone-100"
-        ></span>
-        <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">
-          {{ dateLabel(entry.event) }}
-        </p>
-        <RouterLink
-          :to="`/entity/${entry.event.id}`"
-          class="font-semibold underline decoration-stone-300 underline-offset-2"
-        >
-          {{ ENTITY_META.event.icon }} {{ entry.event.name }}
-        </RouterLink>
-        <p v-if="entry.places.length" class="text-sm text-stone-500">
-          at
-          <template v-for="(place, i) in entry.places" :key="place.id">
-            <RouterLink :to="`/entity/${place.id}`" class="underline">{{ place.name }}</RouterLink
-            ><template v-if="i < entry.places.length - 1">, </template>
-          </template>
-        </p>
-        <div v-if="entry.involved.length" class="mt-1 flex flex-wrap gap-1.5">
-          <RouterLink
-            v-for="who in entry.involved"
-            :key="who.id"
-            :to="`/entity/${who.id}`"
-            class="flex items-center gap-1 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-xs"
-          >
-            <img
-              v-if="portraitOf(who.attrs)"
-              :src="portraitOf(who.attrs)"
-              alt=""
-              class="h-4 w-4 rounded-full object-cover"
-            />
-            <span v-else>{{ ENTITY_META[who.type].icon }}</span>
-            {{ who.name }}
+    <ul v-else class="timeline timeline-vertical timeline-compact">
+      <li v-for="(entry, i) in timeline" :key="entry.event.id">
+        <hr v-if="i > 0" />
+        <div class="timeline-middle text-sm">{{ ENTITY_META.event.icon }}</div>
+        <div class="timeline-end timeline-box mb-2 w-full bg-base-100">
+          <p class="text-xs font-semibold uppercase tracking-wide text-neutral">
+            {{ dateLabel(entry.event) }}
+          </p>
+          <RouterLink :to="`/entity/${entry.event.id}`" class="link font-semibold">
+            {{ entry.event.name }}
           </RouterLink>
+          <p v-if="entry.places.length" class="text-sm opacity-70">
+            at
+            <template v-for="(place, i2) in entry.places" :key="place.id">
+              <RouterLink :to="`/entity/${place.id}`" class="link">{{ place.name }}</RouterLink
+              ><template v-if="i2 < entry.places.length - 1">, </template>
+            </template>
+          </p>
+          <div v-if="entry.involved.length" class="mt-1.5 flex flex-wrap gap-1.5">
+            <RouterLink
+              v-for="who in entry.involved"
+              :key="who.id"
+              :to="`/entity/${who.id}`"
+              class="badge badge-outline badge-sm gap-1"
+            >
+              <img
+                v-if="portraitOf(who.attrs)"
+                :src="portraitOf(who.attrs)"
+                alt=""
+                class="h-4 w-4 rounded-full object-cover"
+              />
+              <span v-else>{{ ENTITY_META[who.type].icon }}</span>
+              {{ who.name }}
+            </RouterLink>
+          </div>
         </div>
+        <hr v-if="i < timeline.length - 1" />
       </li>
-    </ol>
+    </ul>
   </div>
 </template>

@@ -26,30 +26,26 @@ async function onDelete(id: string) {
         v-model="draft"
         rows="2"
         placeholder="Add a note…"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        class="textarea min-w-0 flex-1"
       ></textarea>
-      <button
-        type="submit"
-        class="self-end rounded bg-stone-700 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-        :disabled="!draft.trim()"
-      >
+      <button type="submit" class="btn btn-neutral btn-sm self-end" :disabled="!draft.trim()">
         Add
       </button>
     </form>
-    <ul class="flex flex-col gap-1">
+    <ul class="flex flex-col gap-1.5">
       <li
         v-for="note in notes ?? []"
         :key="note.id"
-        class="flex items-start gap-2 rounded bg-stone-50 px-2 py-1.5 text-sm"
+        class="flex items-start gap-2 rounded-box bg-base-200 px-3 py-2 text-sm"
       >
         <div class="min-w-0 flex-1">
           <p class="whitespace-pre-wrap">{{ note.text }}</p>
-          <p class="mt-0.5 text-xs text-stone-400">
+          <p class="mt-0.5 text-xs opacity-50">
             {{ new Date(note.createdAt).toLocaleString() }}
           </p>
         </div>
         <button
-          class="px-1 text-stone-400 hover:text-red-600"
+          class="btn btn-ghost btn-xs btn-circle"
           title="Delete note"
           @click="onDelete(note.id)"
         >

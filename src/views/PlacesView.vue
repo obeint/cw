@@ -41,14 +41,14 @@ const tree = computed<PlaceNode[]>(() => {
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-3 p-3">
     <h1 class="text-xl font-bold">Places</h1>
-    <p class="text-sm text-stone-500">
+    <p class="text-sm opacity-60">
       Containment derived from <i>located-in</i> relationships.
       {{ ENTITY_META.location.icon }} Roots are places not located in anything.
     </p>
-    <p v-if="tree.length === 0" class="py-8 text-center text-stone-500">
+    <p v-if="tree.length === 0" class="py-8 text-center opacity-60">
       No locations yet. Create location entities and link them with <i>located-in</i>.
     </p>
-    <ul class="rounded border border-stone-200 bg-white p-2">
+    <ul class="card rounded-box bg-base-100 p-2 shadow-sm">
       <PlaceTreeNode v-for="node in tree" :key="node.entity.id" :node="node" />
     </ul>
   </div>

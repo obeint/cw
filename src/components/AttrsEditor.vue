@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-
 import { computed } from 'vue';
 import type { AttributePreset } from '../composables/useAttributeCatalog';
 
@@ -71,14 +70,14 @@ function addAttr() {
 <template>
   <div class="flex flex-col gap-2">
     <div v-for="(value, key) in attrs" :key="key" class="flex items-center gap-2">
-      <span class="w-28 shrink-0 truncate text-sm font-medium text-stone-600">{{ key }}</span>
+      <span class="w-28 shrink-0 truncate text-sm font-medium opacity-70">{{ key }}</span>
       <input
         :value="displayValue(value)"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        class="input input-sm min-w-0 flex-1"
         @change="setAttr(String(key), ($event.target as HTMLInputElement).value)"
       />
       <button
-        class="px-2 text-stone-400 hover:text-red-600"
+        class="btn btn-ghost btn-xs btn-circle"
         title="Remove attribute"
         @click="removeAttr(String(key))"
       >
@@ -90,45 +89,35 @@ function addAttr() {
         v-for="s in unusedSuggestions"
         :key="s.name"
         type="button"
-        class="rounded-full border border-dashed border-stone-400 px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100"
+        class="btn btn-outline btn-xs rounded-full border-dashed font-normal"
         @click="newKey = s.name"
       >
         + {{ s.name }}
       </button>
     </div>
     <div v-if="activeValueChips.length" class="flex flex-wrap items-center gap-1.5">
-      <span class="text-xs text-stone-500">{{ newKey.trim() }}:</span>
+      <span class="text-xs opacity-60">{{ newKey.trim() }}:</span>
       <button
         v-for="v in activeValueChips"
         :key="v"
         type="button"
-        class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 active:bg-amber-200"
+        class="btn btn-accent btn-xs rounded-full"
         @click="setPresetValue(v)"
       >
         {{ v }}
       </button>
     </div>
+    <!-- The suggestion chips above cover discovery; a datalist here would
+         fight the mobile on-screen keyboard. -->
     <form class="flex gap-2" @submit.prevent="addAttr">
-      <!-- The suggestion chips above cover discovery; a datalist here would
-           fight the mobile on-screen keyboard. -->
       <input
         v-model="newKey"
         placeholder="attribute (e.g. rank)"
         autocomplete="off"
-        class="w-28 shrink-0 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        class="input input-sm w-28 shrink-0"
       />
-      <input
-        v-model="newValue"
-        placeholder="value"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
-      />
-      <button
-        type="submit"
-        class="rounded bg-stone-700 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-        :disabled="!newKey.trim()"
-      >
-        Set
-      </button>
+      <input v-model="newValue" placeholder="value" class="input input-sm min-w-0 flex-1" />
+      <button type="submit" class="btn btn-neutral btn-sm" :disabled="!newKey.trim()">Set</button>
     </form>
   </div>
 </template>

@@ -121,20 +121,20 @@ async function onDelete(rel: Relationship) {
       <li
         v-for="rel in [...(outgoing ?? []), ...(incoming ?? [])]"
         :key="rel.id"
-        class="flex items-center gap-2 rounded bg-stone-50 px-2 py-1.5 text-sm"
+        class="flex items-center gap-2 rounded-box bg-base-200 px-3 py-1.5 text-sm"
       >
         <!-- The page's entity is the implied subject; repeating its name in
              every row just truncates away the informative part. -->
         <span class="min-w-0 flex-1 truncate">
-          <i class="text-amber-800">{{ displayLabel(rel) + ' ' }}</i>
+          <i class="text-neutral">{{ displayLabel(rel) + ' ' }}</i>
           <RouterLink
             :to="`/entity/${rel.fromId === entityId ? rel.toId : rel.fromId}`"
-            class="font-medium underline"
+            class="link font-medium"
             >{{ nameOf(rel.fromId === entityId ? rel.toId : rel.fromId) }}</RouterLink
           >
         </span>
         <button
-          class="px-1 text-stone-400 hover:text-red-600"
+          class="btn btn-ghost btn-xs btn-circle"
           title="Delete relationship"
           @click="onDelete(rel)"
         >
@@ -142,59 +142,43 @@ async function onDelete(rel: Relationship) {
         </button>
       </li>
     </ul>
-    <p v-if="!(outgoing?.length || incoming?.length)" class="text-sm text-stone-500">
+    <p v-if="!(outgoing?.length || incoming?.length)" class="text-sm opacity-60">
       No relationships yet.
     </p>
 
-    <p v-if="options.length === 0" class="text-sm text-stone-500">
+    <p v-if="options.length === 0" class="text-sm opacity-60">
       No relationship kinds apply to this entity type — adjust the rules in Settings.
     </p>
     <form v-else class="flex flex-col gap-2" @submit.prevent="onAdd">
       <div class="flex flex-wrap items-center gap-2">
         <b class="max-w-[38%] truncate text-sm">{{ entityName }}</b>
-        <select
-          v-model="selectedKey"
-          class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
-        >
+        <select v-model="selectedKey" class="select select-sm w-36">
           <option v-for="o in options" :key="o.key" :value="o.key">{{ o.label }}</option>
         </select>
         <input
           v-model="targetName"
           placeholder="other entity…"
           autocomplete="off"
-          class="min-w-32 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+          class="input input-sm min-w-32 flex-1"
           @focus="targetFocused = true"
           @blur="targetFocused = false"
         />
-        <button
-          type="submit"
-          class="rounded bg-stone-700 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-          :disabled="!targetId"
-        >
-          Link
-        </button>
+        <button type="submit" class="btn btn-neutral btn-sm" :disabled="!targetId">Link</button>
       </div>
       <!-- mousedown.prevent keeps the input's blur from firing before the pick -->
-      <div
+      <ul
         v-if="targetFocused && !targetId && suggestions.length"
-        class="flex flex-col overflow-hidden rounded border border-stone-200"
+        class="menu menu-sm w-full gap-0.5 rounded-box border border-base-300 bg-base-100 p-1"
       >
-        <button
-          v-for="e in suggestions"
-          :key="e.id"
-          type="button"
-          class="flex items-center gap-2 border-b border-stone-100 bg-white px-3 py-2 text-left text-sm last:border-b-0 active:bg-stone-100"
-          @mousedown.prevent="pickTarget(e.name)"
-        >
-          <span>{{ ENTITY_META[e.type].icon }}</span>
-          <span class="min-w-0 flex-1 truncate">{{ e.name }}</span>
-          <span class="text-xs text-stone-400">{{ ENTITY_META[e.type].label }}</span>
-        </button>
-      </div>
-      <p
-        v-else-if="targetFocused && !targetId && targetName.trim()"
-        class="text-xs text-stone-400"
-      >
+        <li v-for="e in suggestions" :key="e.id">
+          <button type="button" class="flex items-center gap-2" @mousedown.prevent="pickTarget(e.name)">
+            <span>{{ ENTITY_META[e.type].icon }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ e.name }}</span>
+            <span class="text-xs opacity-50">{{ ENTITY_META[e.type].label }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-else-if="targetFocused && !targetId && targetName.trim()" class="text-xs opacity-50">
         No matching entity — check the name, or create it on the Entities tab first.
       </p>
     </form>
