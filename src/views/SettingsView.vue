@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useAttributeCatalog } from '../composables/useAttributeCatalog';
 import { useRelationshipRules } from '../composables/useRelationshipRules';
 import { exportWorld, importWorld, parseWorldExport } from '../composables/useExportImport';
@@ -8,9 +8,18 @@ import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshi
 import { ENTITY_META } from '../domain/entityMeta';
 
 // --- Attribute presets (admin panel) ---
-const { catalog, addAttribute, removeAttribute, resetType } = useAttributeCatalog();
+const { catalog, addAttribute, removeAttribute, resetType, addValue, removeValue } =
+  useAttributeCatalog();
 const selectedType = ref<EntityType>('character');
 const newAttr = ref('');
+const selectedPreset = ref('');
+const newPresetValue = ref('');
+
+watch(selectedType, () => (selectedPreset.value = ''));
+
+const activePreset = computed(() =>
+  catalog.value[selectedType.value].find((p) => p.name === selectedPreset.value),
+);
 
 async function onAddAttr() {
   await addAttribute(selectedType.value, newAttr.value);
@@ -20,6 +29,12 @@ async function onAddAttr() {
 async function onResetType() {
   if (confirm(`Reset ${ENTITY_META[selectedType.value].label} presets to the defaults?`))
     await resetType(selectedType.value);
+}
+
+async function onAddValue() {
+  if (!activePreset.value) return;
+  await addValue(selectedType.value, activePreset.value.name, newPresetValue.value);
+  newPresetValue.value = '';
 }
 
 // --- Relationship rules (admin panel) ---
@@ -95,15 +110,18 @@ async function onImport(event: Event) {
 
       <div class="mb-3 flex flex-wrap gap-1.5">
         <span
-          v-for="name in catalog[selectedType]"
-          :key="name"
-          class="flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-sm"
+          v-for="p in catalog[selectedType]"
+          :key="p.name"
+          class="flex items-center gap-1 rounded-full px-2.5 py-1 text-sm"
+          :class="p.name === selectedPreset ? 'bg-amber-700 text-white' : 'bg-stone-100'"
         >
-          {{ name }}
+          <button @click="selectedPreset = selectedPreset === p.name ? '' : p.name">
+            {{ p.name }}<template v-if="p.values?.length"> ({{ p.values.length }})</template>
+          </button>
           <button
-            class="text-stone-400 hover:text-red-600"
-            :title="`Remove ${name} preset`"
-            @click="removeAttribute(selectedType, name)"
+            :class="p.name === selectedPreset ? 'text-amber-200' : 'text-stone-400 hover:text-red-600'"
+            :title="`Remove ${p.name} preset`"
+            @click="removeAttribute(selectedType, p.name)"
           >
             ✕
           </button>
@@ -111,6 +129,46 @@ async function onImport(event: Event) {
         <span v-if="catalog[selectedType].length === 0" class="text-sm text-stone-400">
           No presets for this type.
         </span>
+      </div>
+
+      <div v-if="activePreset" class="mb-3 rounded border border-amber-200 bg-amber-50 p-2">
+        <p class="mb-1.5 text-xs text-stone-600">
+          Suggested values for <b>{{ activePreset.name }}</b> — offered as one-tap chips on
+          entity pages:
+        </p>
+        <div class="mb-2 flex flex-wrap gap-1.5">
+          <span
+            v-for="v in activePreset.values ?? []"
+            :key="v"
+            class="flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-sm"
+          >
+            {{ v }}
+            <button
+              class="text-stone-400 hover:text-red-600"
+              :title="`Remove value ${v}`"
+              @click="removeValue(selectedType, activePreset.name, v)"
+            >
+              ✕
+            </button>
+          </span>
+          <span v-if="!(activePreset.values?.length)" class="text-sm text-stone-400">
+            No values yet — free text only.
+          </span>
+        </div>
+        <form class="flex gap-2" @submit.prevent="onAddValue">
+          <input
+            v-model="newPresetValue"
+            :placeholder="`New ${activePreset.name} value…`"
+            class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+          />
+          <button
+            type="submit"
+            class="rounded bg-stone-700 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+            :disabled="!newPresetValue.trim()"
+          >
+            Add
+          </button>
+        </form>
       </div>
 
       <form class="flex gap-2" @submit.prevent="onAddAttr">
