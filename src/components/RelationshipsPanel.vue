@@ -4,6 +4,7 @@ import { useRelationships } from '../composables/useRelationships';
 import { useEntities } from '../composables/useEntities';
 import { useRelationshipRules } from '../composables/useRelationshipRules';
 import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
+import { INVERSE_LABELS } from '../domain/relationshipDefaults';
 import type { EntityType, Relationship } from '../domain/types';
 
 const props = defineProps<{ entityId: string; entityName: string; entityType: EntityType }>();
@@ -20,25 +21,55 @@ const nameOf = computed(() => {
   return (id: string) => map.get(id) ?? '(deleted)';
 });
 
-const newType = ref<RelationshipType>('parent-of');
-const targetName = ref('');
-const reversed = ref(false); // reversed: other entity is the subject
+// The current entity always reads as the sentence's subject: an incoming
+// parent-of edge displays with its inverse phrasing ("offspring-of").
+// Symmetric types read the same either way.
+function displayLabel(rel: Relationship): string {
+  if (rel.fromId === props.entityId) return rel.type;
+  return INVERSE_LABELS[rel.type] ?? rel.type;
+}
 
-// Only offer relationship kinds that apply to this entity's type on the side
-// it currently plays (subject normally, object when reversed).
-const allowedTypes = computed(() =>
-  RELATIONSHIP_TYPES.filter((t) =>
-    rules.value[t][reversed.value ? 'to' : 'from'].includes(props.entityType),
-  ),
+// One dropdown covers both directions: forward kinds where this entity can
+// be the subject, and inverse phrasings ("offspring-of" for parent-of) where
+// it can be the object. Picking an inverse stores the canonical edge with
+// subject and object swapped — nothing new is stored.
+interface DirectionOption {
+  key: string;
+  type: RelationshipType;
+  reversed: boolean;
+  label: string;
+}
+
+const options = computed<DirectionOption[]>(() => {
+  const out: DirectionOption[] = [];
+  for (const t of RELATIONSHIP_TYPES) {
+    if (rules.value[t].from.includes(props.entityType))
+      out.push({ key: `fwd:${t}`, type: t, reversed: false, label: t });
+    const inverse = INVERSE_LABELS[t];
+    if (inverse && rules.value[t].to.includes(props.entityType))
+      out.push({ key: `rev:${t}`, type: t, reversed: true, label: inverse });
+  }
+  return out;
+});
+
+const selectedKey = ref('');
+watch(
+  options,
+  (opts) => {
+    if (opts.length > 0 && !opts.some((o) => o.key === selectedKey.value))
+      selectedKey.value = opts[0]!.key;
+  },
+  { immediate: true },
 );
+const selected = computed(() => options.value.find((o) => o.key === selectedKey.value));
 
-watch(allowedTypes, (allowed) => {
-  if (allowed.length > 0 && !allowed.includes(newType.value)) newType.value = allowed[0]!;
-}, { immediate: true });
+const targetName = ref('');
 
 // Candidate targets are entities whose type fits the other side of the edge.
 const targetCandidates = computed(() => {
-  const otherSide = rules.value[newType.value][reversed.value ? 'from' : 'to'];
+  const sel = selected.value;
+  if (!sel) return [];
+  const otherSide = rules.value[sel.type][sel.reversed ? 'from' : 'to'];
   return (entities.value ?? []).filter(
     (e) => e.id !== props.entityId && otherSide.includes(e.type),
   );
@@ -50,11 +81,12 @@ const targetId = computed(() => {
 });
 
 async function onAdd() {
-  if (!targetId.value) return;
+  const sel = selected.value;
+  if (!sel || !targetId.value) return;
   await createRelationship({
-    fromId: reversed.value ? targetId.value : props.entityId,
-    toId: reversed.value ? props.entityId : targetId.value,
-    type: newType.value,
+    fromId: sel.reversed ? targetId.value : props.entityId,
+    toId: sel.reversed ? props.entityId : targetId.value,
+    type: sel.type,
   });
   targetName.value = '';
 }
@@ -74,14 +106,12 @@ async function onDelete(rel: Relationship) {
         class="flex items-center gap-2 rounded bg-stone-50 px-2 py-1.5 text-sm"
       >
         <span class="min-w-0 flex-1 truncate">
-          <template v-if="rel.fromId === entityId">
-            <b>{{ entityName }}</b> <i class="text-amber-800">{{ rel.type }}</i>
-            <RouterLink :to="`/entity/${rel.toId}`" class="underline"> {{ nameOf(rel.toId) }}</RouterLink>
-          </template>
-          <template v-else>
-            <RouterLink :to="`/entity/${rel.fromId}`" class="underline">{{ nameOf(rel.fromId) }}</RouterLink>
-            <i class="text-amber-800"> {{ rel.type }} </i><b>{{ entityName }}</b>
-          </template>
+          <b>{{ entityName }}</b> <i class="text-amber-800">{{ displayLabel(rel) + ' ' }}</i>
+          <RouterLink
+            :to="`/entity/${rel.fromId === entityId ? rel.toId : rel.fromId}`"
+            class="underline"
+            >{{ nameOf(rel.fromId === entityId ? rel.toId : rel.fromId) }}</RouterLink
+          >
         </span>
         <button
           class="px-1 text-stone-400 hover:text-red-600"
@@ -96,24 +126,16 @@ async function onDelete(rel: Relationship) {
       No relationships yet.
     </p>
 
-    <p v-if="allowedTypes.length === 0" class="text-sm text-stone-500">
+    <p v-if="options.length === 0" class="text-sm text-stone-500">
       No relationship kinds apply to this entity type — adjust the rules in Settings.
     </p>
     <form v-else class="flex flex-wrap items-center gap-2" @submit.prevent="onAdd">
-      <button
-        type="button"
-        class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
-        title="Swap subject and object"
-        @click="reversed = !reversed"
-      >
-        ⇄
-      </button>
-      <b v-if="!reversed" class="text-sm">{{ entityName }}</b>
+      <b class="text-sm">{{ entityName }}</b>
       <select
-        v-model="newType"
+        v-model="selectedKey"
         class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
       >
-        <option v-for="t in allowedTypes" :key="t" :value="t">{{ t }}</option>
+        <option v-for="o in options" :key="o.key" :value="o.key">{{ o.label }}</option>
       </select>
       <input
         v-model="targetName"
@@ -121,7 +143,6 @@ async function onDelete(rel: Relationship) {
         placeholder="other entity…"
         class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
       />
-      <b v-if="reversed" class="text-sm">{{ entityName }}</b>
       <datalist id="entity-names">
         <option v-for="e in targetCandidates" :key="e.id" :value="e.name" />
       </datalist>
