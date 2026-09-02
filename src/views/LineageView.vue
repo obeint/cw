@@ -131,6 +131,7 @@ function displayName(name: string): string {
       <h1 class="flex-1 font-bold">Lineage</h1>
       <select v-model="rootId" class="max-w-48 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm">
         <option value="" disabled>Pick a character…</option>
+        <option value="all">🌍 Everyone</option>
         <option v-for="e in entities ?? []" :key="e.id" :value="e.id">{{ e.name }}</option>
       </select>
     </div>
@@ -139,7 +140,17 @@ function displayName(name: string): string {
       <p v-if="!rootId" class="py-8 text-center text-stone-500">
         Pick a character to see their family tree.
       </p>
-      <p v-else-if="lineage && lineage.length <= 1" class="py-8 text-center text-stone-500">
+      <p
+        v-else-if="rootId === 'all' && lineage && lineage.length === 0"
+        class="py-8 text-center text-stone-500"
+      >
+        No family relationships in this world yet. Link characters with parent-of, spouse-of, or
+        sibling-of to grow the forest.
+      </p>
+      <p
+        v-else-if="rootId !== 'all' && lineage && lineage.length <= 1"
+        class="py-8 text-center text-stone-500"
+      >
         No parent-of or spouse-of relationships around this character yet. Add some from the
         entity page.
       </p>

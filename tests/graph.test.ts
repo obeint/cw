@@ -3,6 +3,7 @@ import { db } from '../src/db';
 import { createEntity, deleteEntity } from '../src/composables/useEntities';
 import { createRelationship } from '../src/composables/useRelationships';
 import {
+  allFamilies,
   ancestorIdsOf,
   descendantIdsOf,
   lineageOf,
@@ -136,6 +137,21 @@ describe('lineage traversal', () => {
     // ...explicit ones carry a sibling link instead.
     const spouseNode = nodes.find((n) => n.entity.id === spouse.id)!;
     expect(spouseNode.siblingIds).toEqual([explicitSib.id]);
+  });
+
+  it('allFamilies gathers every family, including disconnected ones', async () => {
+    await family(); // Grandparent -> Parent A -> Child; Parent B -> Child
+    // A second, unrelated family
+    const k = await createEntity({ type: 'character', name: 'King' });
+    const q = await createEntity({ type: 'character', name: 'Queen' });
+    await createRelationship({ fromId: k.id, toId: q.id, type: 'spouse-of' });
+    // An entity with no family edges stays out
+    await createEntity({ type: 'character', name: 'Hermit' });
+
+    const nodes = await allFamilies();
+    const names = nodes.map((n) => n.entity.name).sort();
+    expect(names).toEqual(['Child', 'Grandparent', 'King', 'Parent A', 'Parent B', 'Queen']);
+    expect(nodes.find((n) => n.entity.id === k.id)!.spouseIds).toEqual([q.id]);
   });
 
   it('survives a parent-of cycle without hanging', async () => {

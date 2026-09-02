@@ -124,7 +124,50 @@ export async function lineageOf(rootId: string): Promise<LineageNode[]> {
   }));
 }
 
+/**
+ * Every family in the world at once: all entities touched by a parent-of,
+ * spouse-of, or sibling-of edge, as one forest. Disconnected families lay
+ * out side by side in the DAG view.
+ */
+export async function allFamilies(): Promise<LineageNode[]> {
+  const familyEdges = await db.relationships
+    .where('type')
+    .anyOf(['parent-of', 'spouse-of', 'sibling-of'])
+    .toArray();
+
+  const ids = new Set<string>();
+  for (const e of familyEdges) {
+    ids.add(e.fromId);
+    ids.add(e.toId);
+  }
+
+  const parentMap = new Map<string, string[]>();
+  const spouseMap = new Map<string, string[]>();
+  const siblingMap = new Map<string, string[]>();
+  for (const id of ids) {
+    parentMap.set(id, await parentIdsOf(id));
+    spouseMap.set(id, await spouseIdsOf(id));
+    siblingMap.set(id, await explicitSiblingIdsOf(id));
+  }
+
+  const entities = (await db.entities.bulkGet([...ids])).filter(
+    (e): e is Entity => e !== undefined,
+  );
+  const present = new Set(entities.map((e) => e.id));
+
+  return entities.map((entity) => ({
+    entity,
+    parentIds: (parentMap.get(entity.id) ?? []).filter((pid) => present.has(pid)),
+    spouseIds: (spouseMap.get(entity.id) ?? []).filter((sid) => present.has(sid)),
+    siblingIds: (siblingMap.get(entity.id) ?? []).filter((sid) => present.has(sid)),
+  }));
+}
+
+/** Pass the sentinel 'all' as rootId to get every family (allFamilies). */
 export function useLineage(rootId: MaybeRefOrGetter<string>) {
-  const lineage = useLiveQuery(() => lineageOf(toValue(rootId)), [() => toValue(rootId)]);
+  const lineage = useLiveQuery(() => {
+    const id = toValue(rootId);
+    return id === 'all' ? allFamilies() : lineageOf(id);
+  }, [() => toValue(rootId)]);
   return { lineage };
 }
