@@ -74,6 +74,24 @@ describe('lineage traversal', () => {
     expect(child.parentIds).toEqual([pa.id]);
   });
 
+  it('attaches spouses: in-set by id, out-of-set as entities', async () => {
+    const { pa, pb, child } = await family();
+    // Parent A ⚭ Parent B (both in child's lineage set)
+    await createRelationship({ fromId: pa.id, toId: pb.id, type: 'spouse-of' });
+    // Child ⚭ Outsider (spouse-of stored in the reverse direction)
+    const outsider = await createEntity({ type: 'character', name: 'Outsider' });
+    await createRelationship({ fromId: outsider.id, toId: child.id, type: 'spouse-of' });
+
+    const nodes = await lineageOf(child.id);
+    const paNode = nodes.find((n) => n.entity.id === pa.id)!;
+    expect(paNode.spouseIdsInSet).toEqual([pb.id]);
+    expect(paNode.externalSpouses).toEqual([]);
+
+    const childNode = nodes.find((n) => n.entity.id === child.id)!;
+    expect(childNode.spouseIdsInSet).toEqual([]);
+    expect(childNode.externalSpouses.map((e) => e.name)).toEqual(['Outsider']);
+  });
+
   it('survives a parent-of cycle without hanging', async () => {
     const a = await createEntity({ type: 'character', name: 'A' });
     const b = await createEntity({ type: 'character', name: 'B' });
