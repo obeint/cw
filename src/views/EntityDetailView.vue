@@ -4,11 +4,12 @@ import { useRouter } from 'vue-router';
 import { useEntity } from '../composables/useEntities';
 import { ENTITY_TYPES } from '../domain/types';
 import { ENTITY_META } from '../domain/entityMeta';
-import { PORTRAIT_ATTR, portraitOf, fileToPortraitDataUrl } from '../utils/image';
+import { PORTRAIT_ATTR, portraitOf } from '../utils/image';
 import { useAttributeCatalog } from '../composables/useAttributeCatalog';
 import AttrsEditor from '../components/AttrsEditor.vue';
 import RelationshipsPanel from '../components/RelationshipsPanel.vue';
 import NotesPanel from '../components/NotesPanel.vue';
+import PhotoCropModal from '../components/PhotoCropModal.vue';
 
 const props = defineProps<{ id: string }>();
 const router = useRouter();
@@ -37,20 +38,23 @@ function onAttrsUpdate(next: Record<string, unknown>) {
   });
 }
 
-async function onPhoto(event: Event) {
+const pendingPhoto = ref<File | null>(null);
+
+function onPhoto(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file || !entity.value) return;
-  photoError.value = '';
-  try {
-    const dataUrl = await fileToPortraitDataUrl(file);
-    await updateEntity(entity.value.id, {
-      attrs: { ...entity.value.attrs, [PORTRAIT_ATTR]: dataUrl },
-    });
-  } catch (err) {
-    photoError.value = `Could not read that image: ${err instanceof Error ? err.message : String(err)}`;
-  } finally {
-    if (photoInput.value) photoInput.value.value = '';
+  if (file && entity.value) {
+    photoError.value = '';
+    pendingPhoto.value = file; // opens the crop dialog
   }
+  if (photoInput.value) photoInput.value.value = '';
+}
+
+async function onCropDone(dataUrl: string) {
+  pendingPhoto.value = null;
+  if (!entity.value) return;
+  await updateEntity(entity.value.id, {
+    attrs: { ...entity.value.attrs, [PORTRAIT_ATTR]: dataUrl },
+  });
 }
 
 async function onRemovePhoto() {
@@ -168,6 +172,13 @@ async function onDelete() {
     </section>
 
     <button class="btn btn-outline btn-error self-start" @click="onDelete">Delete entity</button>
+
+    <PhotoCropModal
+      v-if="pendingPhoto"
+      :file="pendingPhoto"
+      @done="onCropDone"
+      @cancel="pendingPhoto = null"
+    />
   </div>
   <p v-else class="p-6 text-center opacity-60">Entity not found.</p>
 </template>
