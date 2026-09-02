@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useAttributeCatalog } from '../composables/useAttributeCatalog';
+import { useRelationshipRules } from '../composables/useRelationshipRules';
 import { exportWorld, importWorld, parseWorldExport } from '../composables/useExportImport';
 import { ENTITY_TYPES, type EntityType } from '../domain/types';
+import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
 import { ENTITY_META } from '../domain/entityMeta';
 
 // --- Attribute presets (admin panel) ---
@@ -18,6 +20,15 @@ async function onAddAttr() {
 async function onResetType() {
   if (confirm(`Reset ${ENTITY_META[selectedType.value].label} presets to the defaults?`))
     await resetType(selectedType.value);
+}
+
+// --- Relationship rules (admin panel) ---
+const { rules, toggle, resetType: resetRelType } = useRelationshipRules();
+const selectedRel = ref<RelationshipType>('parent-of');
+
+async function onResetRel() {
+  if (confirm(`Reset the "${selectedRel.value}" rules to the defaults?`))
+    await resetRelType(selectedRel.value);
 }
 
 // --- Backup ---
@@ -123,6 +134,59 @@ async function onImport(event: Event) {
           Reset
         </button>
       </form>
+    </section>
+
+    <section class="rounded border border-stone-200 bg-white p-3">
+      <h2 class="mb-1 font-semibold">Relationship rules</h2>
+      <p class="mb-3 text-sm text-stone-500">
+        Which entity types each relationship can connect. This filters the pickers on entity
+        pages; existing relationships are never changed.
+      </p>
+
+      <div class="mb-3 flex items-center gap-2">
+        <select
+          v-model="selectedRel"
+          class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        >
+          <option v-for="t in RELATIONSHIP_TYPES" :key="t" :value="t">{{ t }}</option>
+        </select>
+        <button
+          type="button"
+          class="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-600"
+          @click="onResetRel"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-2 text-sm">
+        <div v-for="side in ['from', 'to'] as const" :key="side">
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            {{ side === 'from' ? 'Subject can be' : 'Object can be' }}
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="t in ENTITY_TYPES"
+              :key="t"
+              type="button"
+              class="rounded-full border px-2.5 py-1"
+              :class="
+                rules[selectedRel][side].includes(t)
+                  ? 'border-amber-700 bg-amber-700 text-white'
+                  : 'border-stone-300 bg-white text-stone-400'
+              "
+              @click="toggle(selectedRel, side, t)"
+            >
+              {{ ENTITY_META[t].icon }} {{ ENTITY_META[t].label }}
+            </button>
+          </div>
+        </div>
+        <p class="text-xs text-stone-500">
+          Reads as: <i>{{ rules[selectedRel].from.join('/') || '∅' }}</i>
+          <b class="text-amber-800"> {{ selectedRel }} </b>
+          <i>{{ rules[selectedRel].to.join('/') || '∅' }}</i>
+        </p>
+      </div>
     </section>
 
     <section class="rounded border border-stone-200 bg-white p-3">

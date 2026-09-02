@@ -152,7 +152,12 @@ async function onDelete() {
     <section class="rounded border border-stone-200 bg-white p-3">
       <h2 class="mb-2 font-semibold">Relationships</h2>
       <!-- Keyed so draft form state resets when navigating between entities -->
-      <RelationshipsPanel :key="entity.id" :entity-id="entity.id" :entity-name="entity.name" />
+      <RelationshipsPanel
+        :key="entity.id"
+        :entity-id="entity.id"
+        :entity-name="entity.name"
+        :entity-type="entity.type"
+      />
     </section>
 
     <section class="rounded border border-stone-200 bg-white p-3">
