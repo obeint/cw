@@ -10,12 +10,15 @@ import {
   childIdsOf,
 } from '../src/composables/useLineage';
 import { exportWorld, importWorld, parseWorldExport } from '../src/composables/useExportImport';
+import { mergeCatalog, CATALOG_SETTING_KEY } from '../src/composables/useAttributeCatalog';
+import { DEFAULT_ATTRIBUTE_CATALOG } from '../src/domain/attributeDefaults';
 import { nanoid } from 'nanoid';
 
 beforeEach(async () => {
   await db.entities.clear();
   await db.relationships.clear();
   await db.notes.clear();
+  await db.settings.clear();
 });
 
 describe('deleteEntity cascade', () => {
@@ -98,6 +101,37 @@ describe('export / import', () => {
     expect(await db.relationships.count()).toBe(1);
     expect(await db.notes.count()).toBe(1);
     expect((await db.entities.get(a.id))?.attrs).toEqual({ rank: 'King' });
+  });
+
+  it('round-trips the settings table (attribute presets)', async () => {
+    const custom = { ...DEFAULT_ATTRIBUTE_CATALOG, character: ['rank', 'houseWords'] };
+    await db.settings.put({ key: CATALOG_SETTING_KEY, value: custom });
+
+    const exported = await exportWorld();
+    expect(exported.version).toBe(2);
+
+    await db.settings.clear();
+    await importWorld(parseWorldExport(JSON.stringify(exported)));
+
+    const restored = await db.settings.get(CATALOG_SETTING_KEY);
+    expect(mergeCatalog(restored?.value).character).toEqual(['rank', 'houseWords']);
+  });
+
+  it('accepts a version-1 backup without settings', async () => {
+    const v1 = {
+      format: 'worldbuilder',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entities: [
+        { id: 'e1', type: 'character', name: 'Aragorn', attrs: {}, createdAt: 1, updatedAt: 1 },
+      ],
+      relationships: [],
+      notes: [],
+    };
+    await importWorld(parseWorldExport(JSON.stringify(v1)));
+    expect(await db.entities.count()).toBe(1);
+    // No stored catalog -> defaults apply
+    expect(mergeCatalog(undefined)).toEqual(DEFAULT_ATTRIBUTE_CATALOG);
   });
 
   it('rejects invalid payloads', () => {
