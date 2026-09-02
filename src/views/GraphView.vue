@@ -61,6 +61,8 @@ onMounted(() => {
           'font-size': '10px',
           'text-valign': 'bottom',
           'text-margin-y': 4,
+          'text-wrap': 'wrap',
+          'text-max-width': '90px',
           width: 24,
           height: 24,
         },
@@ -109,6 +111,15 @@ onBeforeUnmount(() => cy?.destroy());
         <option v-for="t in RELATIONSHIP_TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
     </div>
-    <div ref="container" class="min-h-0 flex-1 touch-none"></div>
+    <div class="relative min-h-0 flex-1">
+      <div ref="container" class="h-full w-full touch-none"></div>
+      <p
+        v-if="entities && entities.length === 0"
+        class="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center text-stone-500"
+      >
+        No entities yet. Create some on the Entities tab and link them to see the web of your
+        world.
+      </p>
+    </div>
   </div>
 </template>
