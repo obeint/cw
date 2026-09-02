@@ -6,6 +6,7 @@ import { useEntities } from '../composables/useEntities';
 import { useAllRelationships } from '../composables/useRelationships';
 import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
 import { ENTITY_META } from '../domain/entityMeta';
+import { portraitOf } from '../utils/image';
 
 const router = useRouter();
 const { entities } = useEntities();
@@ -22,9 +23,19 @@ function render() {
   );
   const present = new Set(entities.value.map((e) => e.id));
   const elements = [
-    ...entities.value.map((e) => ({
-      data: { id: e.id, label: e.name, color: ENTITY_META[e.type].color },
-    })),
+    ...entities.value.map((e) => {
+      const portrait = portraitOf(e.attrs);
+      return {
+        // Only set the portrait key when present so the node[portrait]
+        // style selector matches exactly the nodes that have one.
+        data: {
+          id: e.id,
+          label: e.name,
+          color: ENTITY_META[e.type].color,
+          ...(portrait ? { portrait } : {}),
+        },
+      };
+    }),
     ...rels
       .filter((r) => present.has(r.fromId) && present.has(r.toId))
       .map((r) => ({ data: { id: r.id, source: r.fromId, target: r.toId, label: r.type } })),
@@ -52,6 +63,17 @@ onMounted(() => {
           'text-margin-y': 4,
           width: 24,
           height: 24,
+        },
+      },
+      {
+        selector: 'node[portrait]',
+        style: {
+          'background-image': 'data(portrait)',
+          'background-fit': 'cover',
+          'border-width': 2,
+          'border-color': 'data(color)',
+          width: 34,
+          height: 34,
         },
       },
       {

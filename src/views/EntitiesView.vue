@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useEntities } from '../composables/useEntities';
 import { ENTITY_TYPES, type EntityType } from '../domain/types';
 import { ENTITY_META } from '../domain/entityMeta';
+import { portraitOf } from '../utils/image';
 
 const router = useRouter();
 const typeFilter = ref<EntityType | 'all'>('all');
@@ -74,7 +75,13 @@ async function onCreate() {
           :to="`/entity/${e.id}`"
           class="flex items-center gap-3 px-3 py-3 active:bg-stone-100"
         >
-          <span class="text-xl">{{ ENTITY_META[e.type].icon }}</span>
+          <img
+            v-if="portraitOf(e.attrs)"
+            :src="portraitOf(e.attrs)"
+            alt=""
+            class="h-8 w-8 rounded-full border border-stone-300 object-cover"
+          />
+          <span v-else class="text-xl">{{ ENTITY_META[e.type].icon }}</span>
           <span class="min-w-0 flex-1 truncate font-medium">{{ e.name }}</span>
           <span
             class="rounded-full px-2 py-0.5 text-xs text-white"
