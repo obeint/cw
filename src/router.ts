@@ -8,6 +8,7 @@ export const router = createRouter({
     { path: '/graph', component: () => import('./views/GraphView.vue') },
     { path: '/lineage/:id?', component: () => import('./views/LineageView.vue'), props: true },
     { path: '/places', component: () => import('./views/PlacesView.vue') },
+    { path: '/timeline', component: () => import('./views/TimelineView.vue') },
     { path: '/backup', component: () => import('./views/BackupView.vue') },
   ],
 });

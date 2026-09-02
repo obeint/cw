@@ -13,6 +13,7 @@ export const RELATIONSHIP_TYPES = [
   'allied-with',
   'at-war-with',
   'founded',
+  'involved-in',
 ] as const;
 
 export type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];

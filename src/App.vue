@@ -6,6 +6,7 @@ const tabs = [
   { to: '/graph', label: 'Graph', icon: '🕸️' },
   { to: '/lineage', label: 'Lineage', icon: '🌳' },
   { to: '/places', label: 'Places', icon: '🗺️' },
+  { to: '/timeline', label: 'Timeline', icon: '⏳' },
   { to: '/backup', label: 'Backup', icon: '💾' },
 ];
 </script>
