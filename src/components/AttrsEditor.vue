@@ -1,21 +1,39 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-
 import { computed } from 'vue';
+import type { AttributePreset } from '../composables/useAttributeCatalog';
 
 // Dumb key/value editor for the schemaless attrs object. Values are kept as
 // strings unless they parse as JSON (numbers, booleans, arrays).
-// `suggestions` are preset attribute names for this entity's type — tappable
-// chips and autocomplete; any key can still be typed freely.
-const props = defineProps<{ attrs: Record<string, unknown>; suggestions?: string[] }>();
+// `suggestions` are preset attributes for this entity's type — tappable
+// chips; presets with suggested values offer tap-to-set value chips too.
+// Any key and value can still be typed freely.
+const props = defineProps<{ attrs: Record<string, unknown>; suggestions?: AttributePreset[] }>();
 const emit = defineEmits<{ update: [attrs: Record<string, unknown>] }>();
 
 const newKey = ref('');
 const newValue = ref('');
 
 const unusedSuggestions = computed(() =>
-  (props.suggestions ?? []).filter((s) => !(s in props.attrs)),
+  (props.suggestions ?? []).filter((s) => !(s.name in props.attrs)),
 );
+
+// When the typed/tapped attribute name matches a preset with values, offer
+// them as one-tap chips.
+const activeValueChips = computed(() => {
+  const key = newKey.value.trim();
+  if (!key) return [];
+  const preset = (props.suggestions ?? []).find((s) => s.name === key);
+  return preset?.values ?? [];
+});
+
+function setPresetValue(value: string) {
+  const key = newKey.value.trim();
+  if (!key) return;
+  emit('update', { ...props.attrs, [key]: value });
+  newKey.value = '';
+  newValue.value = '';
+}
 
 function parseValue(raw: string): unknown {
   const trimmed = raw.trim();
@@ -52,14 +70,14 @@ function addAttr() {
 <template>
   <div class="flex flex-col gap-2">
     <div v-for="(value, key) in attrs" :key="key" class="flex items-center gap-2">
-      <span class="w-28 shrink-0 truncate text-sm font-medium text-stone-600">{{ key }}</span>
+      <span class="w-28 shrink-0 truncate text-sm font-medium opacity-70">{{ key }}</span>
       <input
         :value="displayValue(value)"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        class="input input-sm min-w-0 flex-1"
         @change="setAttr(String(key), ($event.target as HTMLInputElement).value)"
       />
       <button
-        class="px-2 text-stone-400 hover:text-red-600"
+        class="btn btn-ghost btn-xs btn-circle"
         title="Remove attribute"
         @click="removeAttr(String(key))"
       >
@@ -69,36 +87,37 @@ function addAttr() {
     <div v-if="unusedSuggestions.length" class="flex flex-wrap gap-1.5">
       <button
         v-for="s in unusedSuggestions"
-        :key="s"
+        :key="s.name"
         type="button"
-        class="rounded-full border border-dashed border-stone-400 px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100"
-        @click="newKey = s"
+        class="btn btn-outline btn-xs rounded-full border-dashed font-normal"
+        @click="newKey = s.name"
       >
-        + {{ s }}
+        + {{ s.name }}
       </button>
     </div>
+    <div v-if="activeValueChips.length" class="flex flex-wrap items-center gap-1.5">
+      <span class="text-xs opacity-60">{{ newKey.trim() }}:</span>
+      <button
+        v-for="v in activeValueChips"
+        :key="v"
+        type="button"
+        class="btn btn-accent btn-xs rounded-full"
+        @click="setPresetValue(v)"
+      >
+        {{ v }}
+      </button>
+    </div>
+    <!-- The suggestion chips above cover discovery; a datalist here would
+         fight the mobile on-screen keyboard. -->
     <form class="flex gap-2" @submit.prevent="addAttr">
       <input
         v-model="newKey"
-        list="attr-suggestions"
         placeholder="attribute (e.g. rank)"
-        class="w-28 shrink-0 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        autocomplete="off"
+        class="input input-sm w-28 shrink-0"
       />
-      <datalist id="attr-suggestions">
-        <option v-for="s in unusedSuggestions" :key="s" :value="s" />
-      </datalist>
-      <input
-        v-model="newValue"
-        placeholder="value"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
-      />
-      <button
-        type="submit"
-        class="rounded bg-stone-700 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-        :disabled="!newKey.trim()"
-      >
-        Set
-      </button>
+      <input v-model="newValue" placeholder="value" class="input input-sm min-w-0 flex-1" />
+      <button type="submit" class="btn btn-neutral btn-sm" :disabled="!newKey.trim()">Set</button>
     </form>
   </div>
 </template>

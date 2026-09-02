@@ -34,57 +34,43 @@ async function onCreate() {
     <h1 class="text-xl font-bold">Entities</h1>
 
     <form class="flex gap-2" @submit.prevent="onCreate">
-      <select v-model="newType" class="rounded border border-stone-300 bg-white px-2 py-2">
+      <select v-model="newType" class="select w-36 shrink-0">
         <option v-for="t in ENTITY_TYPES" :key="t" :value="t">
           {{ ENTITY_META[t].icon }} {{ ENTITY_META[t].label }}
         </option>
       </select>
-      <input
-        v-model="newName"
-        placeholder="New entity name…"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-3 py-2"
-      />
-      <button
-        type="submit"
-        class="rounded bg-amber-700 px-4 py-2 font-semibold text-white disabled:opacity-40"
-        :disabled="!newName.trim()"
-      >
-        Add
-      </button>
+      <input v-model="newName" placeholder="New entity name…" class="input min-w-0 flex-1" />
+      <button type="submit" class="btn btn-primary" :disabled="!newName.trim()">Add</button>
     </form>
 
     <div class="flex gap-2">
-      <select v-model="typeFilter" class="rounded border border-stone-300 bg-white px-2 py-2">
+      <select v-model="typeFilter" class="select select-sm w-32 shrink-0">
         <option value="all">All types</option>
         <option v-for="t in ENTITY_TYPES" :key="t" :value="t">{{ ENTITY_META[t].label }}</option>
       </select>
-      <input
-        v-model="search"
-        placeholder="Search by name…"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-3 py-2"
-      />
+      <input v-model="search" placeholder="Search by name…" class="input input-sm min-w-0 flex-1" />
     </div>
 
-    <p v-if="filtered.length === 0" class="py-8 text-center text-stone-500">
+    <p v-if="filtered.length === 0" class="py-8 text-center opacity-60">
       No entities yet. Add your first character, location, or faction above.
     </p>
 
-    <ul class="divide-y divide-stone-200 overflow-hidden rounded border border-stone-200 bg-white">
-      <li v-for="e in filtered" :key="e.id">
+    <ul v-else class="list rounded-box bg-base-100 shadow-sm">
+      <li v-for="e in filtered" :key="e.id" class="list-row items-center p-0">
         <RouterLink
           :to="`/entity/${e.id}`"
-          class="flex items-center gap-3 px-3 py-3 active:bg-stone-100"
+          class="col-span-full flex items-center gap-3 px-3 py-3 active:bg-base-200"
         >
           <img
             v-if="portraitOf(e.attrs)"
             :src="portraitOf(e.attrs)"
             alt=""
-            class="h-8 w-8 rounded-full border border-stone-300 object-cover"
+            class="h-8 w-8 rounded-full border border-base-300 object-cover"
           />
           <span v-else class="text-xl">{{ ENTITY_META[e.type].icon }}</span>
           <span class="min-w-0 flex-1 truncate font-medium">{{ e.name }}</span>
           <span
-            class="rounded-full px-2 py-0.5 text-xs text-white"
+            class="badge badge-sm border-0 text-white"
             :style="{ backgroundColor: ENTITY_META[e.type].color }"
           >
             {{ ENTITY_META[e.type].label }}

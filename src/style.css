@@ -1,8 +1,7 @@
 @import 'tailwindcss';
 
-@theme {
-  --color-parchment: #f5f0e6;
-  --color-ink: #1c1917;
+@plugin 'daisyui' {
+  themes: retro --default;
 }
 
 html,

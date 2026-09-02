@@ -3,6 +3,7 @@ import { db } from '../src/db';
 import { createEntity, deleteEntity } from '../src/composables/useEntities';
 import { createRelationship } from '../src/composables/useRelationships';
 import {
+  allFamilies,
   ancestorIdsOf,
   descendantIdsOf,
   lineageOf,
@@ -138,6 +139,21 @@ describe('lineage traversal', () => {
     expect(spouseNode.siblingIds).toEqual([explicitSib.id]);
   });
 
+  it('allFamilies gathers every family, including disconnected ones', async () => {
+    await family(); // Grandparent -> Parent A -> Child; Parent B -> Child
+    // A second, unrelated family
+    const k = await createEntity({ type: 'character', name: 'King' });
+    const q = await createEntity({ type: 'character', name: 'Queen' });
+    await createRelationship({ fromId: k.id, toId: q.id, type: 'spouse-of' });
+    // An entity with no family edges stays out
+    await createEntity({ type: 'character', name: 'Hermit' });
+
+    const nodes = await allFamilies();
+    const names = nodes.map((n) => n.entity.name).sort();
+    expect(names).toEqual(['Child', 'Grandparent', 'King', 'Parent A', 'Parent B', 'Queen']);
+    expect(nodes.find((n) => n.entity.id === k.id)!.spouseIds).toEqual([q.id]);
+  });
+
   it('survives a parent-of cycle without hanging', async () => {
     const a = await createEntity({ type: 'character', name: 'A' });
     const b = await createEntity({ type: 'character', name: 'B' });
@@ -170,7 +186,11 @@ describe('export / import', () => {
   });
 
   it('round-trips the settings table (attribute presets)', async () => {
-    const custom = { ...DEFAULT_ATTRIBUTE_CATALOG, character: ['rank', 'houseWords'] };
+    // Mixed shapes: legacy name strings and presets with suggested values
+    const custom = {
+      ...DEFAULT_ATTRIBUTE_CATALOG,
+      character: ['houseWords', { name: 'rank', values: ['King', 'Steward'] }],
+    };
     await db.settings.put({ key: CATALOG_SETTING_KEY, value: custom });
 
     const exported = await exportWorld();
@@ -180,7 +200,13 @@ describe('export / import', () => {
     await importWorld(parseWorldExport(JSON.stringify(exported)));
 
     const restored = await db.settings.get(CATALOG_SETTING_KEY);
-    expect(mergeCatalog(restored?.value).character).toEqual(['rank', 'houseWords']);
+    const character = mergeCatalog(restored?.value).character;
+    expect(character.map((p) => p.name)).toEqual(['houseWords', 'rank']);
+    expect(character.find((p) => p.name === 'rank')?.values).toEqual(['King', 'Steward']);
+    // Junk entries are dropped on merge
+    expect(mergeCatalog({ character: [42, { bogus: true }, 'ok'] }).character).toEqual([
+      { name: 'ok' },
+    ]);
   });
 
   it('accepts a version-1 backup without settings', async () => {
@@ -197,7 +223,9 @@ describe('export / import', () => {
     await importWorld(parseWorldExport(JSON.stringify(v1)));
     expect(await db.entities.count()).toBe(1);
     // No stored catalog -> defaults apply
-    expect(mergeCatalog(undefined)).toEqual(DEFAULT_ATTRIBUTE_CATALOG);
+    expect(mergeCatalog(undefined).character.map((p) => p.name)).toEqual(
+      DEFAULT_ATTRIBUTE_CATALOG.character,
+    );
   });
 
   it('relationship rules: defaults are sensible and merges are safe', () => {

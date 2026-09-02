@@ -104,9 +104,9 @@ onBeforeUnmount(() => cy?.destroy());
 
 <template>
   <div class="flex h-full flex-col">
-    <div class="flex items-center gap-2 border-b border-stone-200 bg-white p-2">
+    <div class="flex items-center gap-2 border-b border-base-300 bg-base-100 p-2">
       <h1 class="flex-1 font-bold">Relationship graph</h1>
-      <select v-model="typeFilter" class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm">
+      <select v-model="typeFilter" class="select select-sm w-44">
         <option value="all">All relationships</option>
         <option v-for="t in RELATIONSHIP_TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
@@ -115,7 +115,7 @@ onBeforeUnmount(() => cy?.destroy());
       <div ref="container" class="h-full w-full touch-none"></div>
       <p
         v-if="entities && entities.length === 0"
-        class="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center text-stone-500"
+        class="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center opacity-60"
       >
         No entities yet. Create some on the Entities tab and link them to see the web of your
         world.
