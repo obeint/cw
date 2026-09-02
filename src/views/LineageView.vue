@@ -78,15 +78,36 @@ const layout = computed(() => {
 
     const cards: { x: number; y: number; node: LineageNode }[] = [];
     const junctions: { x: number; y: number; married: boolean }[] = [];
+    const pos = new Map<string, { x: number; y: number }>();
     for (const gn of graph.nodes()) {
-      if (gn.data.person) cards.push({ x: gn.x, y: gn.y, node: gn.data.person });
-      else junctions.push({ x: gn.x, y: gn.y, married: gn.data.married ?? false });
+      if (gn.data.person) {
+        cards.push({ x: gn.x, y: gn.y, node: gn.data.person });
+        pos.set(gn.data.id, { x: gn.x, y: gn.y });
+      } else junctions.push({ x: gn.x, y: gn.y, married: gn.data.married ?? false });
     }
+
+    // Dashed connector for explicit sibling-of pairs that share no drawn
+    // parent — without it the sibling card would look unrelated.
+    const siblingLinks: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    const seenPairs = new Set<string>();
+    for (const n of nodes) {
+      for (const sid of n.siblingIds) {
+        const key = [n.entity.id, sid].sort().join('|');
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        const sib = nodes.find((m) => m.entity.id === sid);
+        if (!sib || n.parentIds.some((p) => sib.parentIds.includes(p))) continue;
+        const a = pos.get(n.entity.id);
+        const b = pos.get(sid);
+        if (a && b) siblingLinks.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+      }
+    }
+
     const links = [...graph.links()].map((l) => ({
       id: `${l.source.data.id}->${l.target.data.id}`,
       points: l.points,
     }));
-    return { width, height, cards, junctions, links };
+    return { width, height, cards, junctions, links, siblingLinks };
   } catch (err) {
     console.error('lineage layout failed:', err);
     return null; // e.g. a parent-of cycle; show the fallback message
@@ -132,6 +153,17 @@ function lifespan(e: Entity): string {
           fill="none"
           stroke="#a8a29e"
           stroke-width="1.5"
+        />
+        <line
+          v-for="(s, i) in layout.siblingLinks"
+          :key="'sib' + i"
+          :x1="s.x1"
+          :y1="s.y1"
+          :x2="s.x2"
+          :y2="s.y2"
+          stroke="#a8a29e"
+          stroke-width="1.5"
+          stroke-dasharray="5 4"
         />
         <g v-for="(j, i) in layout.junctions" :key="'j' + i">
           <circle :cx="j.x" :cy="j.y" r="3" fill="#a8a29e" />

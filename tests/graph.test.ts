@@ -107,6 +107,37 @@ describe('lineage traversal', () => {
     expect(paNode.spouseIds).toEqual([pb.id]);
   });
 
+  it('includes siblings of the root and of spouses', async () => {
+    const { pa, child } = await family();
+    // Root's sibling: another child of Parent A
+    const rootSib = await createEntity({ type: 'character', name: 'RootSib' });
+    await createRelationship({ fromId: pa.id, toId: rootSib.id, type: 'parent-of' });
+
+    // Spouse with a derived sibling (shared in-law parent) and an explicit
+    // sibling-of one (no recorded parents).
+    const spouse = await createEntity({ type: 'character', name: 'Spouse' });
+    const inLaw = await createEntity({ type: 'character', name: 'InLaw' });
+    const spouseSib = await createEntity({ type: 'character', name: 'SpouseSib' });
+    const explicitSib = await createEntity({ type: 'character', name: 'ExplicitSib' });
+    await createRelationship({ fromId: child.id, toId: spouse.id, type: 'spouse-of' });
+    await createRelationship({ fromId: inLaw.id, toId: spouse.id, type: 'parent-of' });
+    await createRelationship({ fromId: inLaw.id, toId: spouseSib.id, type: 'parent-of' });
+    await createRelationship({ fromId: spouse.id, toId: explicitSib.id, type: 'sibling-of' });
+
+    const nodes = await lineageOf(child.id);
+    const names = nodes.map((n) => n.entity.name);
+    expect(names).toContain('RootSib');
+    expect(names).toContain('SpouseSib');
+    expect(names).toContain('ExplicitSib');
+
+    // Derived siblings connect through the shared parent...
+    const spouseSibNode = nodes.find((n) => n.entity.id === spouseSib.id)!;
+    expect(spouseSibNode.parentIds).toEqual([inLaw.id]);
+    // ...explicit ones carry a sibling link instead.
+    const spouseNode = nodes.find((n) => n.entity.id === spouse.id)!;
+    expect(spouseNode.siblingIds).toEqual([explicitSib.id]);
+  });
+
   it('survives a parent-of cycle without hanging', async () => {
     const a = await createEntity({ type: 'character', name: 'A' });
     const b = await createEntity({ type: 'character', name: 'B' });
