@@ -22,6 +22,11 @@ jobs:
       BASE_PATH: /cw/
     steps:
       - uses: actions/checkout@v4
+      # Enables Pages (source: GitHub Actions) if it isn't enabled yet,
+      # so no manual repo-settings step is needed.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
