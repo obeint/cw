@@ -22,76 +22,71 @@ const lineage = computed(() => (rootId.value ? lineageResult.lineage.value : und
 
 const NODE_W = 130;
 const NODE_H = 48;
-const SLOT_W = NODE_W + 20; // one card incl. horizontal gap
-const SLOT_H = NODE_H + 40;
+const SLOT_W = NODE_W + 24;
+const SLOT_H = NODE_H + 44;
 
-interface Card {
-  x: number;
-  y: number;
-  entity: Entity;
-  isSpouse: boolean;
-}
-
+// Couples are joined through invisible "union" junction nodes: the union is
+// a child of both partners, and their children hang from the union — so
+// each parent-child line runs from between the couple, and both families'
+// branches lay out side by side.
 interface Datum {
   id: string;
   parentIds: string[];
-  node: LineageNode;
+  person?: LineageNode;
+  married?: boolean; // union nodes only
 }
 
 const layout = computed(() => {
   const nodes = lineage.value;
   if (!nodes || nodes.length === 0) return null;
   try {
-    const graph = graphStratify()(
-      nodes.map((n): Datum => ({ id: n.entity.id, parentIds: n.parentIds, node: n })),
-    );
-    // Couples need wider slots: one extra card width per attached spouse.
-    const { width, height } = sugiyama().nodeSize((gn: GraphNode<Datum>) => [
-      (1 + gn.data.node.externalSpouses.length) * SLOT_W,
-      SLOT_H,
-    ])(graph);
+    const unionKey = (a: string, b: string) => 'u:' + [a, b].sort().join('|');
+    const unions = new Map<string, { a: string; b: string; married: boolean }>();
 
-    const cards: Card[] = [];
-    const marriages: { x1: number; x2: number; y: number }[] = [];
-    const primaryPos = new Map<string, { x: number; y: number }>();
-
-    for (const gn of graph.nodes()) {
-      const n = gn.data.node;
-      const k = n.externalSpouses.length;
-      // Spread the couple's cards symmetrically around the slot center so
-      // parent/child edges (which attach at the center) hang between them.
-      const cardX = (i: number) => gn.x + (i - k / 2) * SLOT_W;
-      cards.push({ x: cardX(0), y: gn.y, entity: n.entity, isSpouse: false });
-      primaryPos.set(n.entity.id, { x: cardX(0), y: gn.y });
-      n.externalSpouses.forEach((spouse, idx) => {
-        cards.push({ x: cardX(idx + 1), y: gn.y, entity: spouse, isSpouse: true });
-        marriages.push({
-          x1: cardX(idx) + NODE_W / 2,
-          x2: cardX(idx + 1) - NODE_W / 2,
-          y: gn.y,
-        });
-      });
-    }
-
-    // Dashed connector between spouses who are both lineage nodes.
-    const inSetMarriages: { x1: number; y1: number; x2: number; y2: number }[] = [];
-    const seen = new Set<string>();
+    // Unions for married couples...
     for (const n of nodes) {
-      for (const sid of n.spouseIdsInSet) {
-        const key = [n.entity.id, sid].sort().join('|');
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const a = primaryPos.get(n.entity.id);
-        const b = primaryPos.get(sid);
-        if (a && b) inSetMarriages.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+      for (const sid of n.spouseIds) {
+        const key = unionKey(n.entity.id, sid);
+        if (!unions.has(key)) unions.set(key, { a: n.entity.id, b: sid, married: true });
+      }
+    }
+    // ...and for unmarried co-parents, so children still hang between them.
+    for (const n of nodes) {
+      if (n.parentIds.length === 2) {
+        const key = unionKey(n.parentIds[0]!, n.parentIds[1]!);
+        if (!unions.has(key))
+          unions.set(key, { a: n.parentIds[0]!, b: n.parentIds[1]!, married: false });
       }
     }
 
+    const data: Datum[] = nodes.map((n) => {
+      const viaUnion =
+        n.parentIds.length === 2 ? unionKey(n.parentIds[0]!, n.parentIds[1]!) : undefined;
+      return {
+        id: n.entity.id,
+        parentIds: viaUnion ? [viaUnion] : n.parentIds,
+        person: n,
+      };
+    });
+    for (const [key, u] of unions)
+      data.push({ id: key, parentIds: [u.a, u.b], married: u.married });
+
+    const graph = graphStratify()(data);
+    const { width, height } = sugiyama().nodeSize((gn: GraphNode<Datum>) =>
+      gn.data.person ? [SLOT_W, SLOT_H] : [24, 24],
+    )(graph);
+
+    const cards: { x: number; y: number; node: LineageNode }[] = [];
+    const junctions: { x: number; y: number; married: boolean }[] = [];
+    for (const gn of graph.nodes()) {
+      if (gn.data.person) cards.push({ x: gn.x, y: gn.y, node: gn.data.person });
+      else junctions.push({ x: gn.x, y: gn.y, married: gn.data.married ?? false });
+    }
     const links = [...graph.links()].map((l) => ({
       id: `${l.source.data.id}->${l.target.data.id}`,
       points: l.points,
     }));
-    return { width, height, cards, marriages, inSetMarriages, links };
+    return { width, height, cards, junctions, links };
   } catch (err) {
     console.error('lineage layout failed:', err);
     return null; // e.g. a parent-of cycle; show the fallback message
@@ -117,10 +112,7 @@ function lifespan(e: Entity): string {
       <p v-if="!rootId" class="py-8 text-center text-stone-500">
         Pick a character to see their family tree.
       </p>
-      <p
-        v-else-if="lineage && lineage.length <= 1 && !lineage[0]?.externalSpouses.length"
-        class="py-8 text-center text-stone-500"
-      >
+      <p v-else-if="lineage && lineage.length <= 1" class="py-8 text-center text-stone-500">
         No parent-of or spouse-of relationships around this character yet. Add some from the
         entity page.
       </p>
@@ -129,9 +121,9 @@ function lifespan(e: Entity): string {
       </p>
       <svg
         v-else-if="layout"
-        :width="layout.width + 2 * NODE_W"
+        :width="layout.width + NODE_W"
         :height="layout.height + NODE_H"
-        :viewBox="`${-NODE_W} ${-NODE_H / 2} ${layout.width + 2 * NODE_W} ${layout.height + NODE_H}`"
+        :viewBox="`${-NODE_W / 2} ${-NODE_H / 2} ${layout.width + NODE_W} ${layout.height + NODE_H}`"
       >
         <path
           v-for="link in layout.links"
@@ -141,40 +133,22 @@ function lifespan(e: Entity): string {
           stroke="#a8a29e"
           stroke-width="1.5"
         />
-        <line
-          v-for="(m, i) in layout.inSetMarriages"
-          :key="'im' + i"
-          :x1="m.x1"
-          :y1="m.y1"
-          :x2="m.x2"
-          :y2="m.y2"
-          stroke="#d6a15e"
-          stroke-width="1.5"
-          stroke-dasharray="5 4"
-        />
-        <g v-for="(m, i) in layout.marriages" :key="'m' + i">
-          <line
-            :x1="m.x1"
-            :y1="m.y"
-            :x2="m.x2"
-            :y2="m.y"
-            stroke="#d6a15e"
-            stroke-width="1.5"
-          />
+        <g v-for="(j, i) in layout.junctions" :key="'j' + i">
+          <circle :cx="j.x" :cy="j.y" r="3" fill="#a8a29e" />
           <text
-            :x="(m.x1 + m.x2) / 2"
-            :y="m.y - 4"
-            text-anchor="middle"
-            class="fill-amber-700 text-[10px]"
+            v-if="j.married"
+            :x="j.x + 6"
+            :y="j.y + 4"
+            class="fill-amber-700 text-[11px]"
           >
             ⚭
           </text>
         </g>
         <g
           v-for="card in layout.cards"
-          :key="card.entity.id + (card.isSpouse ? ':s' : '')"
+          :key="card.node.entity.id"
           class="cursor-pointer"
-          @click="router.push(`/entity/${card.entity.id}`)"
+          @click="router.push(`/entity/${card.node.entity.id}`)"
         >
           <rect
             :x="card.x - NODE_W / 2"
@@ -182,16 +156,15 @@ function lifespan(e: Entity): string {
             :width="NODE_W"
             :height="NODE_H"
             rx="8"
-            :fill="card.entity.id === rootId ? '#fef3c7' : 'white'"
-            :stroke="ENTITY_META[card.entity.type].color"
+            :fill="card.node.entity.id === rootId ? '#fef3c7' : 'white'"
+            :stroke="ENTITY_META[card.node.entity.type].color"
             stroke-width="1.5"
-            :stroke-dasharray="card.isSpouse ? '4 3' : undefined"
           />
           <text :x="card.x" :y="card.y - 2" text-anchor="middle" class="text-[11px] font-semibold">
-            {{ card.entity.name }}
+            {{ card.node.entity.name }}
           </text>
           <text :x="card.x" :y="card.y + 14" text-anchor="middle" class="fill-stone-400 text-[9px]">
-            {{ lifespan(card.entity) }}
+            {{ lifespan(card.node.entity) }}
           </text>
         </g>
       </svg>

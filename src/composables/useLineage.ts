@@ -53,21 +53,33 @@ export function descendantIdsOf(id: string): Promise<Set<string>> {
 export interface LineageNode {
   entity: Entity;
   parentIds: string[]; // restricted to parents inside the lineage set
-  spouseIdsInSet: string[]; // spouses that are themselves lineage nodes
-  externalSpouses: Entity[]; // spouses outside the lineage, rendered attached
+  spouseIds: string[]; // spouses inside the lineage set
 }
 
 /**
- * The connected lineage around a root: the root, all its ancestors, all its
- * descendants, plus each of those entities' parents when known (so siblings'
- * shared parents render correctly). Spouses are attached to each node:
- * in-set spouses by id, out-of-set spouses as full entities. Returned as a
- * flat node list suitable for a DAG layout.
+ * The connected family around a root: the root, its ancestors and
+ * descendants, plus the spouses of all of those and each spouse's own
+ * ancestors — so both families show when they are known. Everything is
+ * derived by traversal; nothing is stored. Returned as a flat node list
+ * suitable for a DAG layout (marriages carried as spouseIds).
  */
 export async function lineageOf(rootId: string): Promise<LineageNode[]> {
-  const ids = new Set<string>([rootId]);
-  for (const id of await ancestorIdsOf(rootId)) ids.add(id);
-  for (const id of await descendantIdsOf(rootId)) ids.add(id);
+  const base = new Set<string>([rootId]);
+  for (const id of await ancestorIdsOf(rootId)) base.add(id);
+  for (const id of await descendantIdsOf(rootId)) base.add(id);
+
+  // Spouses of the bloodline, then the spouses' own ancestors (in-laws).
+  const ids = new Set(base);
+  const spouses = new Set<string>();
+  for (const id of base) {
+    for (const sid of await spouseIdsOf(id)) {
+      if (!ids.has(sid)) spouses.add(sid);
+      ids.add(sid);
+    }
+  }
+  for (const sid of spouses) {
+    for (const aid of await ancestorIdsOf(sid)) ids.add(aid);
+  }
 
   const parentMap = new Map<string, string[]>();
   const spouseMap = new Map<string, string[]>();
@@ -81,28 +93,11 @@ export async function lineageOf(rootId: string): Promise<LineageNode[]> {
   );
   const present = new Set(entities.map((e) => e.id));
 
-  const externalIds = [
-    ...new Set(
-      [...spouseMap.values()].flat().filter((sid) => !present.has(sid)),
-    ),
-  ];
-  const externalById = new Map(
-    (await db.entities.bulkGet(externalIds))
-      .filter((e): e is Entity => e !== undefined)
-      .map((e) => [e.id, e]),
-  );
-
-  return entities.map((entity) => {
-    const spouses = spouseMap.get(entity.id) ?? [];
-    return {
-      entity,
-      parentIds: (parentMap.get(entity.id) ?? []).filter((pid) => present.has(pid)),
-      spouseIdsInSet: spouses.filter((sid) => present.has(sid)),
-      externalSpouses: spouses
-        .map((sid) => externalById.get(sid))
-        .filter((e): e is Entity => e !== undefined),
-    };
-  });
+  return entities.map((entity) => ({
+    entity,
+    parentIds: (parentMap.get(entity.id) ?? []).filter((pid) => present.has(pid)),
+    spouseIds: (spouseMap.get(entity.id) ?? []).filter((sid) => present.has(sid)),
+  }));
 }
 
 export function useLineage(rootId: MaybeRefOrGetter<string>) {

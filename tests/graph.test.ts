@@ -74,22 +74,37 @@ describe('lineage traversal', () => {
     expect(child.parentIds).toEqual([pa.id]);
   });
 
-  it('attaches spouses: in-set by id, out-of-set as entities', async () => {
+  it('includes spouses and their ancestors (both families)', async () => {
     const { pa, pb, child } = await family();
-    // Parent A ⚭ Parent B (both in child's lineage set)
+    // Parent A ⚭ Parent B (both already in child's lineage set)
     await createRelationship({ fromId: pa.id, toId: pb.id, type: 'spouse-of' });
-    // Child ⚭ Outsider (spouse-of stored in the reverse direction)
-    const outsider = await createEntity({ type: 'character', name: 'Outsider' });
-    await createRelationship({ fromId: outsider.id, toId: child.id, type: 'spouse-of' });
+    // Child ⚭ Spouse (edge stored in the reverse direction), and the
+    // spouse's own parent and grandparent — the in-law line.
+    const spouse = await createEntity({ type: 'character', name: 'Spouse' });
+    const inLaw = await createEntity({ type: 'character', name: 'InLaw' });
+    const inLawGp = await createEntity({ type: 'character', name: 'InLawGp' });
+    await createRelationship({ fromId: spouse.id, toId: child.id, type: 'spouse-of' });
+    await createRelationship({ fromId: inLaw.id, toId: spouse.id, type: 'parent-of' });
+    await createRelationship({ fromId: inLawGp.id, toId: inLaw.id, type: 'parent-of' });
 
     const nodes = await lineageOf(child.id);
-    const paNode = nodes.find((n) => n.entity.id === pa.id)!;
-    expect(paNode.spouseIdsInSet).toEqual([pb.id]);
-    expect(paNode.externalSpouses).toEqual([]);
+    const names = nodes.map((n) => n.entity.name).sort();
+    expect(names).toEqual([
+      'Child',
+      'Grandparent',
+      'InLaw',
+      'InLawGp',
+      'Parent A',
+      'Parent B',
+      'Spouse',
+    ]);
 
     const childNode = nodes.find((n) => n.entity.id === child.id)!;
-    expect(childNode.spouseIdsInSet).toEqual([]);
-    expect(childNode.externalSpouses.map((e) => e.name)).toEqual(['Outsider']);
+    expect(childNode.spouseIds).toEqual([spouse.id]);
+    const spouseNode = nodes.find((n) => n.entity.id === spouse.id)!;
+    expect(spouseNode.parentIds).toEqual([inLaw.id]);
+    const paNode = nodes.find((n) => n.entity.id === pa.id)!;
+    expect(paNode.spouseIds).toEqual([pb.id]);
   });
 
   it('survives a parent-of cycle without hanging', async () => {
