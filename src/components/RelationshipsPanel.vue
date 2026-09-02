@@ -105,11 +105,13 @@ async function onDelete(rel: Relationship) {
         :key="rel.id"
         class="flex items-center gap-2 rounded bg-stone-50 px-2 py-1.5 text-sm"
       >
+        <!-- The page's entity is the implied subject; repeating its name in
+             every row just truncates away the informative part. -->
         <span class="min-w-0 flex-1 truncate">
-          <b>{{ entityName }}</b> <i class="text-amber-800">{{ displayLabel(rel) + ' ' }}</i>
+          <i class="text-amber-800">{{ displayLabel(rel) + ' ' }}</i>
           <RouterLink
             :to="`/entity/${rel.fromId === entityId ? rel.toId : rel.fromId}`"
-            class="underline"
+            class="font-medium underline"
             >{{ nameOf(rel.fromId === entityId ? rel.toId : rel.fromId) }}</RouterLink
           >
         </span>
@@ -130,7 +132,7 @@ async function onDelete(rel: Relationship) {
       No relationship kinds apply to this entity type — adjust the rules in Settings.
     </p>
     <form v-else class="flex flex-wrap items-center gap-2" @submit.prevent="onAdd">
-      <b class="text-sm">{{ entityName }}</b>
+      <b class="max-w-[38%] truncate text-sm">{{ entityName }}</b>
       <select
         v-model="selectedKey"
         class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
@@ -141,7 +143,7 @@ async function onDelete(rel: Relationship) {
         v-model="targetName"
         list="entity-names"
         placeholder="other entity…"
-        class="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+        class="min-w-32 flex-1 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
       />
       <datalist id="entity-names">
         <option v-for="e in targetCandidates" :key="e.id" :value="e.name" />

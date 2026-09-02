@@ -117,6 +117,12 @@ const layout = computed(() => {
 function lifespan(e: Entity): string {
   return [e.attrs.birthYear, e.attrs.deathYear].filter(Boolean).join(' – ');
 }
+
+// SVG text has no CSS ellipsis; truncate to what fits the card. The full
+// name is available as a native tooltip via <title>.
+function displayName(name: string): string {
+  return name.length > 17 ? name.slice(0, 16).trimEnd() + '…' : name;
+}
 </script>
 
 <template>
@@ -192,8 +198,9 @@ function lifespan(e: Entity): string {
             :stroke="ENTITY_META[card.node.entity.type].color"
             stroke-width="1.5"
           />
+          <title>{{ card.node.entity.name }}</title>
           <text :x="card.x" :y="card.y - 2" text-anchor="middle" class="text-[11px] font-semibold">
-            {{ card.node.entity.name }}
+            {{ displayName(card.node.entity.name) }}
           </text>
           <text :x="card.x" :y="card.y + 14" text-anchor="middle" class="fill-stone-400 text-[9px]">
             {{ lifespan(card.node.entity) }}

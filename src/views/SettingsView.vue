@@ -183,7 +183,7 @@ async function onImport(event: Event) {
         </div>
         <p class="text-xs text-stone-500">
           Reads as: <i>{{ rules[selectedRel].from.join('/') || '∅' }}</i>
-          <b class="text-amber-800"> {{ selectedRel }} </b>
+          <b class="text-amber-800">{{ ' ' + selectedRel + ' ' }}</b>
           <i>{{ rules[selectedRel].to.join('/') || '∅' }}</i>
         </p>
       </div>
