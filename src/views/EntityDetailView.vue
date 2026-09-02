@@ -5,6 +5,7 @@ import { useEntity } from '../composables/useEntities';
 import { ENTITY_TYPES } from '../domain/types';
 import { ENTITY_META } from '../domain/entityMeta';
 import { PORTRAIT_ATTR, portraitOf, fileToPortraitDataUrl } from '../utils/image';
+import { useAttributeCatalog } from '../composables/useAttributeCatalog';
 import AttrsEditor from '../components/AttrsEditor.vue';
 import RelationshipsPanel from '../components/RelationshipsPanel.vue';
 import NotesPanel from '../components/NotesPanel.vue';
@@ -14,6 +15,10 @@ const router = useRouter();
 const { entity, updateEntity, deleteEntity } = useEntity(() => props.id);
 
 const portrait = computed(() => portraitOf(entity.value?.attrs));
+const { catalog } = useAttributeCatalog();
+const attrSuggestions = computed(() =>
+  entity.value ? catalog.value[entity.value.type] : [],
+);
 const photoInput = ref<HTMLInputElement>();
 const photoError = ref('');
 
@@ -141,13 +146,18 @@ async function onDelete() {
 
     <section class="rounded border border-stone-200 bg-white p-3">
       <h2 class="mb-2 font-semibold">Attributes</h2>
-      <AttrsEditor :attrs="editableAttrs" @update="onAttrsUpdate" />
+      <AttrsEditor :attrs="editableAttrs" :suggestions="attrSuggestions" @update="onAttrsUpdate" />
     </section>
 
     <section class="rounded border border-stone-200 bg-white p-3">
       <h2 class="mb-2 font-semibold">Relationships</h2>
       <!-- Keyed so draft form state resets when navigating between entities -->
-      <RelationshipsPanel :key="entity.id" :entity-id="entity.id" :entity-name="entity.name" />
+      <RelationshipsPanel
+        :key="entity.id"
+        :entity-id="entity.id"
+        :entity-name="entity.name"
+        :entity-type="entity.type"
+      />
     </section>
 
     <section class="rounded border border-stone-200 bg-white p-3">

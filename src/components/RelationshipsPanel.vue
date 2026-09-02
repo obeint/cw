@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRelationships } from '../composables/useRelationships';
 import { useEntities } from '../composables/useEntities';
+import { useRelationshipRules } from '../composables/useRelationshipRules';
 import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
-import type { Relationship } from '../domain/types';
+import type { EntityType, Relationship } from '../domain/types';
 
-const props = defineProps<{ entityId: string; entityName: string }>();
+const props = defineProps<{ entityId: string; entityName: string; entityType: EntityType }>();
 
 const { outgoing, incoming, createRelationship, deleteRelationship } = useRelationships(
   () => props.entityId,
 );
 const { entities } = useEntities();
+const { rules } = useRelationshipRules();
 
 const nameOf = computed(() => {
   const map = new Map<string, string>();
@@ -22,11 +24,29 @@ const newType = ref<RelationshipType>('parent-of');
 const targetName = ref('');
 const reversed = ref(false); // reversed: other entity is the subject
 
+// Only offer relationship kinds that apply to this entity's type on the side
+// it currently plays (subject normally, object when reversed).
+const allowedTypes = computed(() =>
+  RELATIONSHIP_TYPES.filter((t) =>
+    rules.value[t][reversed.value ? 'to' : 'from'].includes(props.entityType),
+  ),
+);
+
+watch(allowedTypes, (allowed) => {
+  if (allowed.length > 0 && !allowed.includes(newType.value)) newType.value = allowed[0]!;
+}, { immediate: true });
+
+// Candidate targets are entities whose type fits the other side of the edge.
+const targetCandidates = computed(() => {
+  const otherSide = rules.value[newType.value][reversed.value ? 'from' : 'to'];
+  return (entities.value ?? []).filter(
+    (e) => e.id !== props.entityId && otherSide.includes(e.type),
+  );
+});
+
 const targetId = computed(() => {
   const name = targetName.value.trim().toLowerCase();
-  return (entities.value ?? []).find(
-    (e) => e.name.toLowerCase() === name && e.id !== props.entityId,
-  )?.id;
+  return targetCandidates.value.find((e) => e.name.toLowerCase() === name)?.id;
 });
 
 async function onAdd() {
@@ -76,7 +96,10 @@ async function onDelete(rel: Relationship) {
       No relationships yet.
     </p>
 
-    <form class="flex flex-wrap items-center gap-2" @submit.prevent="onAdd">
+    <p v-if="allowedTypes.length === 0" class="text-sm text-stone-500">
+      No relationship kinds apply to this entity type — adjust the rules in Settings.
+    </p>
+    <form v-else class="flex flex-wrap items-center gap-2" @submit.prevent="onAdd">
       <button
         type="button"
         class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
@@ -90,7 +113,7 @@ async function onDelete(rel: Relationship) {
         v-model="newType"
         class="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
       >
-        <option v-for="t in RELATIONSHIP_TYPES" :key="t" :value="t">{{ t }}</option>
+        <option v-for="t in allowedTypes" :key="t" :value="t">{{ t }}</option>
       </select>
       <input
         v-model="targetName"
@@ -100,7 +123,7 @@ async function onDelete(rel: Relationship) {
       />
       <b v-if="reversed" class="text-sm">{{ entityName }}</b>
       <datalist id="entity-names">
-        <option v-for="e in entities ?? []" :key="e.id" :value="e.name" />
+        <option v-for="e in targetCandidates" :key="e.id" :value="e.name" />
       </datalist>
       <button
         type="submit"

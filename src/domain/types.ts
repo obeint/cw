@@ -37,6 +37,12 @@ export interface Note {
   createdAt: number;
 }
 
+// App-level configuration rows (e.g. the attribute preset catalog).
+export interface Setting {
+  key: string;
+  value: unknown;
+}
+
 export function isEntityType(value: unknown): value is EntityType {
   return (
     typeof value === 'string' && (ENTITY_TYPES as readonly string[]).includes(value)

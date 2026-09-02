@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+import { computed } from 'vue';
+
 // Dumb key/value editor for the schemaless attrs object. Values are kept as
 // strings unless they parse as JSON (numbers, booleans, arrays).
-const props = defineProps<{ attrs: Record<string, unknown> }>();
+// `suggestions` are preset attribute names for this entity's type — tappable
+// chips and autocomplete; any key can still be typed freely.
+const props = defineProps<{ attrs: Record<string, unknown>; suggestions?: string[] }>();
 const emit = defineEmits<{ update: [attrs: Record<string, unknown>] }>();
 
 const newKey = ref('');
 const newValue = ref('');
+
+const unusedSuggestions = computed(() =>
+  (props.suggestions ?? []).filter((s) => !(s in props.attrs)),
+);
 
 function parseValue(raw: string): unknown {
   const trimmed = raw.trim();
@@ -58,12 +66,27 @@ function addAttr() {
         ✕
       </button>
     </div>
+    <div v-if="unusedSuggestions.length" class="flex flex-wrap gap-1.5">
+      <button
+        v-for="s in unusedSuggestions"
+        :key="s"
+        type="button"
+        class="rounded-full border border-dashed border-stone-400 px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100"
+        @click="newKey = s"
+      >
+        + {{ s }}
+      </button>
+    </div>
     <form class="flex gap-2" @submit.prevent="addAttr">
       <input
         v-model="newKey"
+        list="attr-suggestions"
         placeholder="attribute (e.g. rank)"
         class="w-28 shrink-0 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
       />
+      <datalist id="attr-suggestions">
+        <option v-for="s in unusedSuggestions" :key="s" :value="s" />
+      </datalist>
       <input
         v-model="newValue"
         placeholder="value"

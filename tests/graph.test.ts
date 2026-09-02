@@ -10,12 +10,17 @@ import {
   childIdsOf,
 } from '../src/composables/useLineage';
 import { exportWorld, importWorld, parseWorldExport } from '../src/composables/useExportImport';
+import { mergeCatalog, CATALOG_SETTING_KEY } from '../src/composables/useAttributeCatalog';
+import { DEFAULT_ATTRIBUTE_CATALOG } from '../src/domain/attributeDefaults';
+import { mergeRules } from '../src/composables/useRelationshipRules';
+import { DEFAULT_RELATIONSHIP_RULES } from '../src/domain/relationshipDefaults';
 import { nanoid } from 'nanoid';
 
 beforeEach(async () => {
   await db.entities.clear();
   await db.relationships.clear();
   await db.notes.clear();
+  await db.settings.clear();
 });
 
 describe('deleteEntity cascade', () => {
@@ -98,6 +103,52 @@ describe('export / import', () => {
     expect(await db.relationships.count()).toBe(1);
     expect(await db.notes.count()).toBe(1);
     expect((await db.entities.get(a.id))?.attrs).toEqual({ rank: 'King' });
+  });
+
+  it('round-trips the settings table (attribute presets)', async () => {
+    const custom = { ...DEFAULT_ATTRIBUTE_CATALOG, character: ['rank', 'houseWords'] };
+    await db.settings.put({ key: CATALOG_SETTING_KEY, value: custom });
+
+    const exported = await exportWorld();
+    expect(exported.version).toBe(2);
+
+    await db.settings.clear();
+    await importWorld(parseWorldExport(JSON.stringify(exported)));
+
+    const restored = await db.settings.get(CATALOG_SETTING_KEY);
+    expect(mergeCatalog(restored?.value).character).toEqual(['rank', 'houseWords']);
+  });
+
+  it('accepts a version-1 backup without settings', async () => {
+    const v1 = {
+      format: 'worldbuilder',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entities: [
+        { id: 'e1', type: 'character', name: 'Aragorn', attrs: {}, createdAt: 1, updatedAt: 1 },
+      ],
+      relationships: [],
+      notes: [],
+    };
+    await importWorld(parseWorldExport(JSON.stringify(v1)));
+    expect(await db.entities.count()).toBe(1);
+    // No stored catalog -> defaults apply
+    expect(mergeCatalog(undefined)).toEqual(DEFAULT_ATTRIBUTE_CATALOG);
+  });
+
+  it('relationship rules: defaults are sensible and merges are safe', () => {
+    // Family edges apply to characters only by default
+    expect(DEFAULT_RELATIONSHIP_RULES['parent-of'].from).toEqual(['character']);
+    expect(DEFAULT_RELATIONSHIP_RULES['parent-of'].to).toEqual(['character']);
+    // Anything can be located in a location, but only locations contain
+    expect(DEFAULT_RELATIONSHIP_RULES['located-in'].to).toEqual(['location']);
+
+    // No stored override -> defaults
+    expect(mergeRules(undefined)).toEqual(DEFAULT_RELATIONSHIP_RULES);
+    // Partial override merges over defaults; junk entries are dropped
+    const merged = mergeRules({ 'parent-of': { from: ['race', 'bogus'], to: ['race'] } });
+    expect(merged['parent-of']).toEqual({ from: ['race'], to: ['race'] });
+    expect(merged['spouse-of']).toEqual(DEFAULT_RELATIONSHIP_RULES['spouse-of']);
   });
 
   it('rejects invalid payloads', () => {
