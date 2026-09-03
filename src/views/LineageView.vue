@@ -5,6 +5,7 @@ import { graphStratify, sugiyama, type GraphNode } from 'd3-dag';
 import { useEntities } from '../composables/useEntities';
 import { useLineage, type LineageNode } from '../composables/useLineage';
 import { ENTITY_META } from '../domain/entityMeta';
+import { portraitOf } from '../utils/image';
 import type { Entity } from '../domain/types';
 
 const props = defineProps<{ id?: string }>();
@@ -24,6 +25,7 @@ const NODE_W = 130;
 const NODE_H = 48;
 const SLOT_W = NODE_W + 24;
 const SLOT_H = NODE_H + 44;
+const PHOTO = 32; // portrait circle diameter inside a card
 
 // Couples are joined through invisible "union" junction nodes: the union is
 // a child of both partners, and their children hang from the union — so
@@ -118,10 +120,10 @@ function lifespan(e: Entity): string {
   return [e.attrs.birthYear, e.attrs.deathYear].filter(Boolean).join(' – ');
 }
 
-// SVG text has no CSS ellipsis; truncate to what fits the card. The full
-// name is available as a native tooltip via <title>.
-function displayName(name: string): string {
-  return name.length > 17 ? name.slice(0, 16).trimEnd() + '…' : name;
+// SVG text has no CSS ellipsis; truncate to what fits the card (less when a
+// portrait takes up space). The full name is a native tooltip via <title>.
+function displayName(name: string, max = 17): string {
+  return name.length > max ? name.slice(0, max - 1).trimEnd() + '…' : name;
 }
 </script>
 
@@ -210,12 +212,53 @@ function displayName(name: string): string {
             stroke-width="1.5"
           />
           <title>{{ card.node.entity.name }}</title>
-          <text :x="card.x" :y="card.y - 2" text-anchor="middle" class="text-[11px] font-semibold">
-            {{ displayName(card.node.entity.name) }}
-          </text>
-          <text :x="card.x" :y="card.y + 14" text-anchor="middle" class="fill-stone-400 text-[9px]">
-            {{ lifespan(card.node.entity) }}
-          </text>
+          <template v-if="portraitOf(card.node.entity.attrs)">
+            <!-- Portrait in a circle on the card's left; text centered in the rest -->
+            <clipPath :id="`pclip-${card.node.entity.id}`">
+              <circle :cx="card.x - NODE_W / 2 + 22" :cy="card.y" :r="PHOTO / 2" />
+            </clipPath>
+            <image
+              :href="portraitOf(card.node.entity.attrs)"
+              :x="card.x - NODE_W / 2 + 22 - PHOTO / 2"
+              :y="card.y - PHOTO / 2"
+              :width="PHOTO"
+              :height="PHOTO"
+              :clip-path="`url(#pclip-${card.node.entity.id})`"
+              preserveAspectRatio="xMidYMid slice"
+            />
+            <circle
+              :cx="card.x - NODE_W / 2 + 22"
+              :cy="card.y"
+              :r="PHOTO / 2"
+              fill="none"
+              :stroke="ENTITY_META[card.node.entity.type].color"
+              stroke-width="1"
+            />
+            <text
+              :x="card.x + 19"
+              :y="card.y - 2"
+              text-anchor="middle"
+              class="text-[11px] font-semibold"
+            >
+              {{ displayName(card.node.entity.name, 12) }}
+            </text>
+            <text
+              :x="card.x + 19"
+              :y="card.y + 14"
+              text-anchor="middle"
+              class="fill-stone-400 text-[9px]"
+            >
+              {{ lifespan(card.node.entity) }}
+            </text>
+          </template>
+          <template v-else>
+            <text :x="card.x" :y="card.y - 2" text-anchor="middle" class="text-[11px] font-semibold">
+              {{ displayName(card.node.entity.name) }}
+            </text>
+            <text :x="card.x" :y="card.y + 14" text-anchor="middle" class="fill-stone-400 text-[9px]">
+              {{ lifespan(card.node.entity) }}
+            </text>
+          </template>
         </g>
       </svg>
     </div>
