@@ -7,6 +7,7 @@ export const ENTITY_TYPES = [
   'faction',
   'artifact',
   'event',
+  'story',
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];

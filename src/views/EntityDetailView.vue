@@ -5,6 +5,7 @@ import { useEntity } from '../composables/useEntities';
 import { ENTITY_TYPES } from '../domain/types';
 import { ENTITY_META } from '../domain/entityMeta';
 import { PORTRAIT_ATTR, portraitOf } from '../utils/image';
+import { STORY_TEXT_ATTR } from '../domain/attributeDefaults';
 import { useAttributeCatalog } from '../composables/useAttributeCatalog';
 import AttrsEditor from '../components/AttrsEditor.vue';
 import RelationshipsPanel from '../components/RelationshipsPanel.vue';
@@ -23,18 +24,37 @@ const attrSuggestions = computed(() =>
   entity.value ? catalog.value[entity.value.type] : [],
 );
 
-// The portrait is managed by the photo UI below, so keep it out of the
-// key/value attrs editor and merge it back on every attrs update.
+// The portrait (and, for stories, the scene text) are managed by dedicated
+// UI, so keep them out of the key/value attrs editor and merge them back on
+// every attrs update.
 const editableAttrs = computed(() => {
   const { [PORTRAIT_ATTR]: _portrait, ...rest } = entity.value?.attrs ?? {};
+  if (entity.value?.type === 'story') delete rest[STORY_TEXT_ATTR];
   return rest;
+});
+
+const storyText = computed(() => {
+  const t = entity.value?.attrs[STORY_TEXT_ATTR];
+  return typeof t === 'string' ? t : '';
 });
 
 function onAttrsUpdate(next: Record<string, unknown>) {
   if (!entity.value) return;
-  const current = portraitOf(entity.value.attrs);
+  const merged = { ...next };
+  const portrait = portraitOf(entity.value.attrs);
+  if (portrait) merged[PORTRAIT_ATTR] = portrait;
+  if (entity.value.type === 'story' && storyText.value)
+    merged[STORY_TEXT_ATTR] = storyText.value;
+  updateEntity(entity.value.id, { attrs: merged });
+}
+
+function onStoryText(event: Event) {
+  if (!entity.value) return;
   updateEntity(entity.value.id, {
-    attrs: current ? { ...next, [PORTRAIT_ATTR]: current } : next,
+    attrs: {
+      ...entity.value.attrs,
+      [STORY_TEXT_ATTR]: (event.target as HTMLTextAreaElement).value,
+    },
   });
 }
 
@@ -141,6 +161,20 @@ async function onDelete() {
           </div>
         </div>
         <p v-if="photoError" class="text-sm text-error">{{ photoError }}</p>
+      </div>
+    </section>
+
+    <section v-if="entity.type === 'story'" class="card bg-base-100 shadow-sm">
+      <div class="card-body gap-2 p-4">
+        <h2 class="card-title text-base">Scene</h2>
+        <!-- Saved on blur/change, like the other fields on this page -->
+        <textarea
+          :value="storyText"
+          rows="10"
+          placeholder="Write the scene… who says what, what happens, what it sets up."
+          class="textarea min-h-40 w-full leading-relaxed"
+          @change="onStoryText"
+        ></textarea>
       </div>
     </section>
 

@@ -12,7 +12,12 @@ export const DEFAULT_ATTRIBUTE_CATALOG: Record<EntityType, string[]> = {
   faction: ['motto', 'foundedYear', 'colors', 'goal'],
   artifact: ['material', 'powers', 'creator', 'forgedYear'],
   event: ['year', 'date', 'outcome'],
+  story: ['year', 'date', 'status', 'chapter'],
 };
+
+// Attribute holding a story's scene text; edited in its own big textarea on
+// the entity page, so keep it out of the key/value editor and presets.
+export const STORY_TEXT_ATTR = 'text';
 
 // Keys managed by dedicated UI, never offered or accepted as presets.
 export const RESERVED_ATTRS = [PORTRAIT_ATTR];

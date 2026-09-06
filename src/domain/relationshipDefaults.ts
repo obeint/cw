@@ -39,7 +39,7 @@ export const DEFAULT_RELATIONSHIP_RULES: Record<RelationshipType, RelationshipRu
   'member-of': { from: ['character'], to: ['faction', 'race'] },
   'serves-under': { from: ['character'], to: ['character'] },
   'located-in': {
-    from: ['location', 'character', 'faction', 'artifact', 'event'],
+    from: ['location', 'character', 'faction', 'artifact', 'event', 'story'],
     to: ['location'],
   },
   'capital-of': { from: ['location'], to: ['location', 'faction'] },
@@ -48,6 +48,6 @@ export const DEFAULT_RELATIONSHIP_RULES: Record<RelationshipType, RelationshipRu
   founded: { from: ['character', 'faction'], to: ['location', 'faction'] },
   'involved-in': {
     from: ['character', 'faction', 'location', 'race', 'artifact'],
-    to: ['event'],
+    to: ['event', 'story'],
   },
 };
