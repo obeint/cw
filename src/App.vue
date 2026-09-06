@@ -7,6 +7,7 @@ const tabs = [
   { to: '/lineage', label: 'Lineage', icon: '🌳' },
   { to: '/places', label: 'Places', icon: '🗺️' },
   { to: '/timeline', label: 'Timeline', icon: '⏳' },
+  { to: '/stories', label: 'Stories', icon: '📖' },
   { to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 </script>

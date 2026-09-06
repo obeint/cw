@@ -8,4 +8,5 @@ export const ENTITY_META: Record<EntityType, { label: string; icon: string; colo
   faction: { label: 'Faction', icon: '⚔️', color: '#b91c1c' },
   artifact: { label: 'Artifact', icon: '💍', color: '#a16207' },
   event: { label: 'Event', icon: '🔥', color: '#0369a1' },
+  story: { label: 'Story', icon: '📖', color: '#9d174d' },
 };

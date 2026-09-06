@@ -235,6 +235,10 @@ describe('export / import', () => {
     // Anything can be located in a location, but only locations contain
     expect(DEFAULT_RELATIONSHIP_RULES['located-in'].to).toEqual(['location']);
 
+    // Stories: people are involved-in a story, a story is located-in a place
+    expect(DEFAULT_RELATIONSHIP_RULES['involved-in'].to).toContain('story');
+    expect(DEFAULT_RELATIONSHIP_RULES['located-in'].from).toContain('story');
+
     // No stored override -> defaults
     expect(mergeRules(undefined)).toEqual(DEFAULT_RELATIONSHIP_RULES);
     // Partial override merges over defaults; junk entries are dropped
