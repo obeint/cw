@@ -6,12 +6,14 @@ import { useEntities } from '../composables/useEntities';
 import { useLineage, type LineageNode } from '../composables/useLineage';
 import { ENTITY_META } from '../domain/entityMeta';
 import { portraitOf } from '../utils/image';
+import { useDisplayNames } from '../composables/useDisplayNames';
 import type { Entity } from '../domain/types';
 
 const props = defineProps<{ id?: string }>();
 const router = useRouter();
 
 const { entities } = useEntities('character');
+const { displayNameOf } = useDisplayNames();
 const rootId = ref(props.id ?? '');
 watchEffect(() => {
   if (props.id) rootId.value = props.id;
@@ -134,7 +136,9 @@ function displayName(name: string, max = 17): string {
       <select v-model="rootId" class="select select-sm max-w-48">
         <option value="" disabled>Pick a character…</option>
         <option value="all">🌍 Everyone</option>
-        <option v-for="e in entities ?? []" :key="e.id" :value="e.id">{{ e.name }}</option>
+        <option v-for="e in entities ?? []" :key="e.id" :value="e.id">
+          {{ displayNameOf(e.id) }}
+        </option>
       </select>
     </div>
 
@@ -211,7 +215,7 @@ function displayName(name: string, max = 17): string {
             :stroke="ENTITY_META[card.node.entity.type].color"
             stroke-width="1.5"
           />
-          <title>{{ card.node.entity.name }}</title>
+          <title>{{ displayNameOf(card.node.entity.id) }}</title>
           <template v-if="portraitOf(card.node.entity.attrs)">
             <!-- Portrait in a circle on the card's left; text centered in the rest -->
             <clipPath :id="`pclip-${card.node.entity.id}`">
@@ -240,7 +244,7 @@ function displayName(name: string, max = 17): string {
               text-anchor="middle"
               class="text-[11px] font-semibold"
             >
-              {{ displayName(card.node.entity.name, 12) }}
+              {{ displayName(displayNameOf(card.node.entity.id), 12) }}
             </text>
             <text
               :x="card.x + 19"
@@ -253,7 +257,7 @@ function displayName(name: string, max = 17): string {
           </template>
           <template v-else>
             <text :x="card.x" :y="card.y - 2" text-anchor="middle" class="text-[11px] font-semibold">
-              {{ displayName(card.node.entity.name) }}
+              {{ displayName(displayNameOf(card.node.entity.id)) }}
             </text>
             <text :x="card.x" :y="card.y + 14" text-anchor="middle" class="fill-stone-400 text-[9px]">
               {{ lifespan(card.node.entity) }}

@@ -5,6 +5,7 @@ import { useEntities } from '../composables/useEntities';
 import { useAllRelationships } from '../composables/useRelationships';
 import { ENTITY_META } from '../domain/entityMeta';
 import { portraitOf } from '../utils/image';
+import { useDisplayNames } from '../composables/useDisplayNames';
 import type { Entity } from '../domain/types';
 
 // Timeline is a derived view: event entities ordered by attrs.year, with
@@ -12,6 +13,7 @@ import type { Entity } from '../domain/types';
 const router = useRouter();
 const { entities, createEntity } = useEntities();
 const { relationships } = useAllRelationships();
+const { displayNameOf } = useDisplayNames();
 
 function yearOf(e: Entity): number | undefined {
   const y = Number(e.attrs.year);
@@ -150,7 +152,7 @@ async function onCreate() {
                 class="h-4 w-4 rounded-full object-cover"
               />
               <span v-else>{{ ENTITY_META[who.type].icon }}</span>
-              {{ who.name }}
+              {{ displayNameOf(who.id) }}
             </RouterLink>
           </div>
         </div>

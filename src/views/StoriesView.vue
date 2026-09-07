@@ -6,6 +6,7 @@ import { useAllRelationships } from '../composables/useRelationships';
 import { ENTITY_META } from '../domain/entityMeta';
 import { STORY_TEXT_ATTR } from '../domain/attributeDefaults';
 import { portraitOf } from '../utils/image';
+import { useDisplayNames } from '../composables/useDisplayNames';
 import type { Entity } from '../domain/types';
 
 // Stories are entities of type 'story': the scene's location hangs off a
@@ -14,6 +15,7 @@ import type { Entity } from '../domain/types';
 const router = useRouter();
 const { entities, createEntity } = useEntities();
 const { relationships } = useAllRelationships();
+const { displayNameOf } = useDisplayNames();
 
 interface StoryEntry {
   story: Entity;
@@ -121,7 +123,7 @@ async function onCreate() {
               class="h-4 w-4 rounded-full object-cover"
             />
             <span v-else>{{ ENTITY_META[who.type].icon }}</span>
-            {{ who.name }}
+            {{ displayNameOf(who.id) }}
           </span>
         </div>
       </div>

@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue';
 import { useRelationships } from '../composables/useRelationships';
 import { useEntities } from '../composables/useEntities';
 import { useRelationshipRules } from '../composables/useRelationshipRules';
+import { useDisplayNames } from '../composables/useDisplayNames';
 import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
 import { INVERSE_LABELS } from '../domain/relationshipDefaults';
 import { ENTITY_META } from '../domain/entityMeta';
-import type { EntityType, Relationship } from '../domain/types';
+import type { Entity, EntityType, Relationship } from '../domain/types';
 
 const props = defineProps<{ entityId: string; entityName: string; entityType: EntityType }>();
 
@@ -15,12 +16,7 @@ const { outgoing, incoming, createRelationship, deleteRelationship } = useRelati
 );
 const { entities } = useEntities();
 const { rules } = useRelationshipRules();
-
-const nameOf = computed(() => {
-  const map = new Map<string, string>();
-  for (const e of entities.value ?? []) map.set(e.id, e.name);
-  return (id: string) => map.get(id) ?? '(deleted)';
-});
+const { displayNameOf } = useDisplayNames();
 
 // The current entity always reads as the sentence's subject: an incoming
 // parent-of edge displays with its inverse phrasing ("offspring-of").
@@ -66,6 +62,14 @@ const selected = computed(() => options.value.find((o) => o.key === selectedKey.
 
 const targetName = ref('');
 const targetFocused = ref(false);
+// Set when a suggestion is tapped; typing anything else clears it so the
+// text and the selection can't disagree.
+const pickedTargetId = ref<string>();
+
+watch(targetName, (name) => {
+  if (pickedTargetId.value && name !== displayNameOf(pickedTargetId.value))
+    pickedTargetId.value = undefined;
+});
 
 // Candidate targets are entities whose type fits the other side of the edge.
 const targetCandidates = computed(() => {
@@ -83,18 +87,27 @@ const targetCandidates = computed(() => {
 const suggestions = computed(() => {
   const q = targetName.value.trim().toLowerCase();
   const matches = q
-    ? targetCandidates.value.filter((e) => e.name.toLowerCase().includes(q))
+    ? targetCandidates.value.filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) ||
+          displayNameOf(e.id).toLowerCase().includes(q),
+      )
     : targetCandidates.value;
   return matches.slice(0, 6);
 });
 
 const targetId = computed(() => {
+  if (pickedTargetId.value && targetCandidates.value.some((e) => e.id === pickedTargetId.value))
+    return pickedTargetId.value;
   const name = targetName.value.trim().toLowerCase();
-  return targetCandidates.value.find((e) => e.name.toLowerCase() === name)?.id;
+  return targetCandidates.value.find(
+    (e) => e.name.toLowerCase() === name || displayNameOf(e.id).toLowerCase() === name,
+  )?.id;
 });
 
-function pickTarget(name: string) {
-  targetName.value = name;
+function pickTarget(e: Entity) {
+  targetName.value = displayNameOf(e.id);
+  pickedTargetId.value = e.id;
   targetFocused.value = false;
 }
 
@@ -107,10 +120,11 @@ async function onAdd() {
     type: sel.type,
   });
   targetName.value = '';
+  pickedTargetId.value = undefined;
 }
 
 async function onDelete(rel: Relationship) {
-  const sentence = `${nameOf.value(rel.fromId)} ${rel.type} ${nameOf.value(rel.toId)}`;
+  const sentence = `${displayNameOf(rel.fromId)} ${rel.type} ${displayNameOf(rel.toId)}`;
   if (confirm(`Delete relationship "${sentence}"?`)) await deleteRelationship(rel.id);
 }
 </script>
@@ -130,7 +144,7 @@ async function onDelete(rel: Relationship) {
           <RouterLink
             :to="`/entity/${rel.fromId === entityId ? rel.toId : rel.fromId}`"
             class="link font-medium"
-            >{{ nameOf(rel.fromId === entityId ? rel.toId : rel.fromId) }}</RouterLink
+            >{{ displayNameOf(rel.fromId === entityId ? rel.toId : rel.fromId) }}</RouterLink
           >
         </span>
         <button
@@ -171,9 +185,9 @@ async function onDelete(rel: Relationship) {
         class="menu menu-sm w-full gap-0.5 rounded-box border border-base-300 bg-base-100 p-1"
       >
         <li v-for="e in suggestions" :key="e.id">
-          <button type="button" class="flex items-center gap-2" @mousedown.prevent="pickTarget(e.name)">
+          <button type="button" class="flex items-center gap-2" @mousedown.prevent="pickTarget(e)">
             <span>{{ ENTITY_META[e.type].icon }}</span>
-            <span class="min-w-0 flex-1 truncate">{{ e.name }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ displayNameOf(e.id) }}</span>
             <span class="text-xs opacity-50">{{ ENTITY_META[e.type].label }}</span>
           </button>
         </li>

@@ -5,16 +5,18 @@ import { useEntities } from '../composables/useEntities';
 import { ENTITY_TYPES, type EntityType } from '../domain/types';
 import { ENTITY_META } from '../domain/entityMeta';
 import { portraitOf } from '../utils/image';
+import { useDisplayNames } from '../composables/useDisplayNames';
 
 const router = useRouter();
 const typeFilter = ref<EntityType | 'all'>('all');
 const search = ref('');
 const { entities, createEntity } = useEntities(typeFilter);
+const { displayNameOf } = useDisplayNames();
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   const list = entities.value ?? [];
-  return q ? list.filter((e) => e.name.toLowerCase().includes(q)) : list;
+  return q ? list.filter((e) => displayNameOf(e.id).toLowerCase().includes(q)) : list;
 });
 
 const newName = ref('');
@@ -68,7 +70,7 @@ async function onCreate() {
             class="h-8 w-8 rounded-full border border-base-300 object-cover"
           />
           <span v-else class="text-xl">{{ ENTITY_META[e.type].icon }}</span>
-          <span class="min-w-0 flex-1 truncate font-medium">{{ e.name }}</span>
+          <span class="min-w-0 flex-1 truncate font-medium">{{ displayNameOf(e.id) }}</span>
           <span
             class="badge badge-sm border-0 text-white"
             :style="{ backgroundColor: ENTITY_META[e.type].color }"
