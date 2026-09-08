@@ -31,21 +31,29 @@ export const DEFAULT_RELATIONSHIP_RULES: Record<RelationshipType, RelationshipRu
   'parent-of': { from: ['character'], to: ['character'] },
   'spouse-of': { from: ['character'], to: ['character'] },
   'sibling-of': { from: ['character'], to: ['character'] },
-  rules: { from: ['character', 'faction'], to: ['location', 'faction'] },
+  rules: { from: ['character', 'faction', 'clan'], to: ['location', 'faction'] },
   'vassal-of': {
-    from: ['character', 'faction', 'location'],
-    to: ['character', 'faction', 'location'],
+    from: ['character', 'faction', 'location', 'clan'],
+    to: ['character', 'faction', 'location', 'clan'],
   },
-  'member-of': { from: ['character'], to: ['faction', 'race'] },
+  // A character's first clan membership also supplies their displayed
+  // last name (see domain/displayName.ts).
+  'member-of': { from: ['character'], to: ['faction', 'race', 'clan'] },
   'serves-under': { from: ['character'], to: ['character'] },
   'located-in': {
     from: ['location', 'character', 'faction', 'artifact', 'event', 'story'],
     to: ['location'],
   },
   'capital-of': { from: ['location'], to: ['location', 'faction'] },
-  'allied-with': { from: ['character', 'faction'], to: ['character', 'faction'] },
-  'at-war-with': { from: ['character', 'faction'], to: ['character', 'faction'] },
-  founded: { from: ['character', 'faction'], to: ['location', 'faction'] },
+  'allied-with': {
+    from: ['character', 'faction', 'clan'],
+    to: ['character', 'faction', 'clan'],
+  },
+  'at-war-with': {
+    from: ['character', 'faction', 'clan'],
+    to: ['character', 'faction', 'clan'],
+  },
+  founded: { from: ['character', 'faction', 'clan'], to: ['location', 'faction', 'clan'] },
   'involved-in': {
     from: ['character', 'faction', 'location', 'race', 'artifact'],
     to: ['event', 'story'],

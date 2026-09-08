@@ -8,6 +8,7 @@ export const ENTITY_TYPES = [
   'artifact',
   'event',
   'story',
+  'clan',
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];

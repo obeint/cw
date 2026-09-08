@@ -13,6 +13,7 @@ export const DEFAULT_ATTRIBUTE_CATALOG: Record<EntityType, string[]> = {
   artifact: ['material', 'powers', 'creator', 'forgedYear'],
   event: ['year', 'date', 'outcome'],
   story: ['year', 'date', 'status', 'chapter'],
+  clan: ['motto', 'seat', 'foundedYear', 'sigil'],
 };
 
 // Attribute holding a story's scene text; edited in its own big textarea on

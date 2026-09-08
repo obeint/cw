@@ -9,4 +9,5 @@ export const ENTITY_META: Record<EntityType, { label: string; icon: string; colo
   artifact: { label: 'Artifact', icon: '💍', color: '#a16207' },
   event: { label: 'Event', icon: '🔥', color: '#0369a1' },
   story: { label: 'Story', icon: '📖', color: '#9d174d' },
+  clan: { label: 'Clan', icon: '🛡️', color: '#0f766e' },
 };

@@ -7,6 +7,7 @@ import { useAllRelationships } from '../composables/useRelationships';
 import { RELATIONSHIP_TYPES, type RelationshipType } from '../domain/relationshipTypes';
 import { ENTITY_META } from '../domain/entityMeta';
 import { portraitOf } from '../utils/image';
+import { buildDisplayNames } from '../domain/displayName';
 
 const router = useRouter();
 const { entities } = useEntities();
@@ -22,6 +23,7 @@ function render() {
     (r) => typeFilter.value === 'all' || r.type === typeFilter.value,
   );
   const present = new Set(entities.value.map((e) => e.id));
+  const displayNames = buildDisplayNames(entities.value, relationships.value);
   const elements = [
     ...entities.value.map((e) => {
       const portrait = portraitOf(e.attrs);
@@ -30,7 +32,7 @@ function render() {
         // style selector matches exactly the nodes that have one.
         data: {
           id: e.id,
-          label: e.name,
+          label: displayNames.get(e.id) ?? e.name,
           color: ENTITY_META[e.type].color,
           ...(portrait ? { portrait } : {}),
         },
